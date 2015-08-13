@@ -66,7 +66,7 @@
  */
 
 template<unsigned int dim, typename T, template<typename> class device_l=openfpm::device_cpu, typename Memory=HeapMemory, template<unsigned int, typename> class Domain=Box>
-class CartDecomposition : public ie_loc_ghost<dim,T>, public nn_prcs<dim,T>
+class CartDecomposition : public ie_loc_ghost<dim,T>, public nn_prcs<dim,T> , public ie_ghost<dim,T>
 {
 
 public:
@@ -90,10 +90,10 @@ private:
 	//! and for each processor contain the boxes calculated from the intersection
 	//! of the sub-domains + ghost with the near-by processor sub-domain () and the other way around
 	//! \see calculateGhostBoxes
-	openfpm::vector< openfpm::vector< Box_proc<dim,T> > > box_nn_processor_int;
+//	openfpm::vector< openfpm::vector< Box_proc<dim,T> > > box_nn_processor_int;
 
 	//! It store the same information of box_nn_processor_int organized by processor id
-	openfpm::vector< Box_dom<dim,T> > proc_int_box;
+//	openfpm::vector< Box_dom<dim,T> > proc_int_box;
 
 	//! for each sub-domain, contain the list of the neighborhood processors
 	openfpm::vector<openfpm::vector<long unsigned int> > box_nn_processor;
@@ -119,7 +119,7 @@ private:
 	Vcluster & v_cl;
 
 	//! Cell-list that store the geometrical information of the internal ghost boxes
-	CellList<dim,T,FAST> geo_cell;
+//	CellList<dim,T,FAST> geo_cell;
 
 	//! Cell-list that store the geometrical information of the local internal ghost boxes
 	CellList<dim,T,FAST> lgeo_cell;
@@ -255,7 +255,7 @@ private:
 			orig.get(i) = bound.getLow(i);
 
 		// Initialize the geo_cell structure
-		geo_cell.Initialize(domain,div,orig);
+		ie_ghost<dim,T>::Initialize_geo_cell(domain,div,orig);
 		lgeo_cell.Initialize(domain,div,orig);
 	}
 
@@ -312,7 +312,7 @@ private:
 	 * \see calculateGhostBoxes
 	 *
 	 */
-	void create_box_nn_processor_ext(Ghost<dim,T> & ghost)
+/*	void create_box_nn_processor_ext(Ghost<dim,T> & ghost)
 	{
 		box_nn_processor_int.resize(sub_domains.size());
 		proc_int_box.resize(nn_prcs<dim,T>::getNNProcessors());
@@ -352,7 +352,7 @@ private:
 
 					if (intersect == true)
 					{
-						struct p_box pb;
+						struct p_box<dim,T> pb;
 
 						pb.box = bi;
 						pb.proc = p_id;
@@ -391,7 +391,7 @@ private:
 				}
 			}
 		}
-	}
+	}*/
 
 	/*! \brief Create the box_nn_processor_int (nbx part) structure, the geo_cell list and proc_int_box
 	 *
@@ -405,7 +405,7 @@ private:
 	 * \see calculateGhostBoxes
 	 *
 	 */
-	void create_box_nn_processor_int(Ghost<dim,T> & ghost)
+/*	void create_box_nn_processor_int(Ghost<dim,T> & ghost)
 	{
 		box_nn_processor_int.resize(sub_domains.size());
 		proc_int_box.resize(nn_prcs<dim,T>::getNNProcessors());
@@ -423,7 +423,7 @@ private:
 				const openfpm::vector< ::Box<dim,T> > & nn_p_box = nn_prcs<dim,T>::getAdjacentSubdomain(p_id);
 
 				// get the local processor id
-				size_t lc_proc = nn_prcs<dim,T>::getAdjacentProcessor(p_id)/*nn_processor_subdomains[p_id].id*/;
+				size_t lc_proc = nn_prcs<dim,T>::getAdjacentProcessor(p_id);
 
 				// For each near processor sub-domains enlarge and intersect with the local sub-domain and store the result
 				for (size_t k = 0 ; k < nn_p_box.size() ; k++)
@@ -439,7 +439,7 @@ private:
 					n_sub.enlarge(ghost);
 
 					// Intersect with the local sub-domain
-					p_box b_int;
+					p_box<dim,T> b_int;
 					bool intersect = n_sub.Intersect(l_sub,b_int.box);
 
 					// store if it intersect
@@ -509,7 +509,7 @@ private:
 				}
 			}
 		}
-	}
+	}*/
 
 	// Heap memory receiver
 	HeapMemory hp_recv;
@@ -563,29 +563,7 @@ public:
 	~CartDecomposition()
 	{}
 
-	// It store all the boxes of the near processors in a linear array
-	struct p_box
-	{
-		//! Box that identify the intersection of the ghost of the near processor with the
-		//! processor sub-domain
-		::Box<dim,T> box;
-		//! local processor id
-		size_t lc_proc;
-		//! processor id
-		size_t proc;
-
-		/*! \brief Check if two p_box are the same
-		 *
-		 * \param pb box to check
-		 *
-		 */
-		bool operator==(const p_box & pb)
-		{
-			return pb.lc_proc == lc_proc;
-		}
-	};
-
-	openfpm::vector<size_t> ids;
+//	openfpm::vector<size_t> ids;
 
 	/*! \brief class to select the returned id by ghost_processorID
 	 *
@@ -601,7 +579,7 @@ public:
 		 * \return box id
 		 *
 		 */
-		inline static size_t id(p_box & p, size_t b_id)
+		inline static size_t id(p_box<dim,T> & p, size_t b_id)
 		{
 			return b_id;
 		}
@@ -621,7 +599,7 @@ public:
 		 * \return processor id
 		 *
 		 */
-		inline static size_t id(p_box & p, size_t b_id)
+		inline static size_t id(p_box<dim,T> & p, size_t b_id)
 		{
 			return p.proc;
 		}
@@ -641,7 +619,7 @@ public:
 		 * \return local processor id
 		 *
 		 */
-		inline static size_t id(p_box & p, size_t b_id)
+		inline static size_t id(p_box<dim,T> & p, size_t b_id)
 		{
 			return p.lc_proc;
 		}
@@ -653,14 +631,11 @@ public:
 	 * \return An iterator with the id's of the internal boxes in which the point fall
 	 *
 	 */
-	auto getInternalIDBoxes(Point<dim,T> & p) -> decltype(geo_cell.getIterator(geo_cell.getCell(p)))
+/*	auto getInternalIDBoxes(Point<dim,T> & p) -> decltype(geo_cell.getIterator(geo_cell.getCell(p)))
 	{
 		return geo_cell.getIterator(geo_cell.getCell(p));
-	}
+	}*/
 
-
-#define UNIQUE 1
-#define MULTIPLE 2
 
 	/*! \brief Given a position it return if the position belong to any neighborhood processor ghost
 	 * (Internal ghost)
@@ -674,7 +649,7 @@ public:
 	 * \param return the processor ids
 	 *
 	 */
-	template <typename id> inline const openfpm::vector<size_t> ghost_processorID(Point<dim,T> & p, const int opt = MULTIPLE)
+/*	template <typename id> inline const openfpm::vector<size_t> ghost_processorID(Point<dim,T> & p, const int opt = MULTIPLE)
 	{
 		ids.clear();
 
@@ -701,7 +676,7 @@ public:
 			ids.unique();
 
 		return ids;
-	}
+	}*/
 
 	/*! \brief Given a position it return if the position belong to any neighborhood processor ghost
 	 * (Internal ghost)
@@ -712,7 +687,7 @@ public:
 	 * \param return the processor ids
 	 *
 	 */
-	template<typename id, typename Mem> inline const openfpm::vector<size_t> ghost_processorID(const encapc<1,Point<dim,T>,Mem> & p, const int opt = MULTIPLE)
+/*	template<typename id, typename Mem> inline const openfpm::vector<size_t> ghost_processorID(const encapc<1,Point<dim,T>,Mem> & p, const int opt = MULTIPLE)
 	{
 		ids.clear();
 
@@ -739,14 +714,14 @@ public:
 			ids.unique();
 
 		return ids;
-	}
+	}*/
 
 	// External ghost boxes for this processor, indicated with G8_0 G9_0 ...
-	openfpm::vector<p_box> vb_ext;
+//	openfpm::vector<p_box<dim,T>> vb_ext;
 
 	// Internal ghost boxes for this processor domain, indicated with B8_0 B9_0 ..... in the figure
 	// below as a linear vector
-	openfpm::vector<p_box> vb_int;
+//	openfpm::vector<p_box<dim,T>> vb_int;
 
 	/*! It calculate the internal ghost boxes
 	 *
@@ -847,8 +822,8 @@ p1[0]<-----+         +----> p2[0]
 		// Intersect all the local sub-domains with the sub-domains of the contiguous processors
 
 		// create the internal structures that store ghost information
-		create_box_nn_processor_ext(ghost);
-		create_box_nn_processor_int(ghost);
+		ie_ghost<dim,T>::create_box_nn_processor_ext(v_cl,ghost,sub_domains,box_nn_processor,*this);
+		ie_ghost<dim,T>::create_box_nn_processor_int(v_cl,ghost,sub_domains,box_nn_processor,*this);
 
 		// ebox must come after ibox (in this case)
 		ie_loc_ghost<dim,T>::create_loc_ghost_ibox(ghost,sub_domains);
@@ -1073,10 +1048,10 @@ p1[0]<-----+         +----> p2[0]
 	 * \return iterator of the processors id's
 	 *
 	 */
-	inline auto labelPoint(Point<dim,T> & p) -> decltype(geo_cell.getIterator(geo_cell.getCell(p)))
+/*	inline auto labelPoint(Point<dim,T> & p) -> decltype(geo_cell.getIterator(geo_cell.getCell(p)))
 	{
 		return geo_cell.getIterator(geo_cell.getCell(p));
-	}
+	}*/
 
 
 	////////////// Functions to get decomposition information ///////////////
@@ -1088,10 +1063,10 @@ p1[0]<-----+         +----> p2[0]
 	 * \return the number of internal ghost
 	 *
 	 */
-	inline size_t getProcessorNIGhost(size_t id) const
+/*	inline size_t getProcessorNIGhost(size_t id) const
 	{
 		return proc_int_box.get(id).ibx.size();
-	}
+	}*/
 
 	/*! \brief Get the number of External ghost boxes for one processor id
 	 *
@@ -1099,10 +1074,10 @@ p1[0]<-----+         +----> p2[0]
 	 * \return the number of external ghost
 	 *
 	 */
-	inline size_t getProcessorNEGhost(size_t id) const
+/*	inline size_t getProcessorNEGhost(size_t id) const
 	{
 		return proc_int_box.get(id).ebx.size();
-	}
+	}*/
 
 	/*! \brief Get the j Internal ghost box for one processor
 	 *
@@ -1111,10 +1086,10 @@ p1[0]<-----+         +----> p2[0]
 	 * \return the box
 	 *
 	 */
-	inline const ::Box<dim,T> & getProcessorIGhostBox(size_t id, size_t j) const
+/*	inline const ::Box<dim,T> & getProcessorIGhostBox(size_t id, size_t j) const
 	{
 		return proc_int_box.get(id).ibx.get(j);
-	}
+	}*/
 
 	/*! \brief Get the j External ghost box
 	 *
@@ -1123,10 +1098,10 @@ p1[0]<-----+         +----> p2[0]
 	 * \return the box
 	 *
 	 */
-	inline const ::Box<dim,T> & getProcessorEGhostBox(size_t id, size_t j) const
+/*	inline const ::Box<dim,T> & getProcessorEGhostBox(size_t id, size_t j) const
 	{
 		return proc_int_box.get(id).ebx.get(j);
-	}
+	}*/
 
 	/*! \brief Get the j Internal ghost box id
 	 *
@@ -1135,10 +1110,10 @@ p1[0]<-----+         +----> p2[0]
 	 * \return the box
 	 *
 	 */
-	inline size_t getProcessorIGhostId(size_t id, size_t j) const
+/*	inline size_t getProcessorIGhostId(size_t id, size_t j) const
 	{
 		return proc_int_box.get(id).ibx.get(j).id;
-	}
+	}*/
 
 	/*! \brief Get the j External ghost box id
 	 *
@@ -1147,10 +1122,10 @@ p1[0]<-----+         +----> p2[0]
 	 * \return the box
 	 *
 	 */
-	inline size_t getProcessorEGhostId(size_t id, size_t j) const
+/*	inline size_t getProcessorEGhostId(size_t id, size_t j) const
 	{
 		return proc_int_box.get(id).ebx.get(j).id;
-	}
+	}*/
 
 
 	/*! \brief Get the local sub-domain at witch belong the internal ghost box
@@ -1160,10 +1135,10 @@ p1[0]<-----+         +----> p2[0]
 	 * \return sub-domain at which belong the internal ghost box
 	 *
 	 */
-	inline const size_t getProcessorIGhostSub(size_t id, size_t j) const
+/*	inline const size_t getProcessorIGhostSub(size_t id, size_t j) const
 	{
 		return proc_int_box.get(id).ibx.get(j).sub;
-	}
+	}*/
 
 	/*! \brief Get the local sub-domain at witch belong the external ghost box
 	 *
@@ -1172,30 +1147,30 @@ p1[0]<-----+         +----> p2[0]
 	 * \return sub-domain at which belong the external ghost box
 	 *
 	 */
-	inline const size_t getProcessorEGhostSub(size_t id, size_t j) const
+/*	inline const size_t getProcessorEGhostSub(size_t id, size_t j) const
 	{
 		return proc_int_box.get(id).ebx.get(j).sub;
-	}
+	}*/
 
 	/*! \brief Return the total number of the calculated internal ghost boxes
 	 *
 	 * \return the number of internal ghost boxes
 	 *
 	 */
-	inline size_t getNIGhostBox() const
+/*	inline size_t getNIGhostBox() const
 	{
 		return vb_int.size();
-	}
+	}*/
 
 	/*! \brief Given the internal ghost box id, it return the internal ghost box
 	 *
 	 * \return the internal ghost box
 	 *
 	 */
-	inline ::Box<dim,T> getIGhostBox(size_t b_id) const
+/*	inline ::Box<dim,T> getIGhostBox(size_t b_id) const
 	{
 		return vb_int.get(b_id).box;
-	}
+	}*/
 
 	/*! \brief Given the internal ghost box id, it return the near processor at witch belong
 	 *         or the near processor that produced this internal ghost box
@@ -1203,30 +1178,30 @@ p1[0]<-----+         +----> p2[0]
 	 * \return the processor id of the ghost box
 	 *
 	 */
-	inline size_t getIGhostBoxProcessor(size_t b_id) const
+/*	inline size_t getIGhostBoxProcessor(size_t b_id) const
 	{
 		return vb_int.get(b_id).proc;
-	}
+	}*/
 
 	/*! \brief Get the number of the calculated external ghost boxes
 	 *
 	 * \return the number of external ghost boxes
 	 *
 	 */
-	inline size_t getNEGhostBox() const
+/*	inline size_t getNEGhostBox() const
 	{
 		return vb_ext.size();
-	}
+	}*/
 
 	/*! \brief Given the external ghost box id, it return the external ghost box
 	 *
 	 * \return the external ghost box
 	 *
 	 */
-	inline ::Box<dim,T> getEGhostBox(size_t b_id) const
+/*	inline ::Box<dim,T> getEGhostBox(size_t b_id) const
 	{
 		return vb_ext.get(b_id).box;
-	}
+	}*/
 
 	/*! \brief Given the external ghost box id, it return the near processor at witch belong
 	 *         or the near processor that produced this external ghost box
@@ -1234,10 +1209,10 @@ p1[0]<-----+         +----> p2[0]
 	 * \return the processor id of the external ghost box
 	 *
 	 */
-	inline size_t getEGhostBoxProcessor(size_t b_id) const
+/*	inline size_t getEGhostBoxProcessor(size_t b_id) const
 	{
 		return vb_ext.get(b_id).proc;
-	}
+	}*/
 
 	/*! \brief Write the decomposition as VTK file
 	 *
@@ -1265,7 +1240,7 @@ p1[0]<-----+         +----> p2[0]
 		nn_prcs<dim,T>::write(output);
 
 		//! internal_ghost_X.vtk Internal ghost boxes for the local processor (X)
-		VTKWriter<openfpm::vector<::Box<dim,T>>,VECTOR_BOX> vtk_box3;
+/*		VTKWriter<openfpm::vector<::Box<dim,T>>,VECTOR_BOX> vtk_box3;
 		for (size_t p = 0 ; p < box_nn_processor_int.size() ; p++)
 		{
 			for (size_t s = 0 ; s < box_nn_processor_int.get(p).size() ; s++)
@@ -1284,8 +1259,9 @@ p1[0]<-----+         +----> p2[0]
 				vtk_box4.add(box_nn_processor_int.get(p).get(s).bx);
 			}
 		}
-		vtk_box4.write(output + std::string("external_ghost_") + std::to_string(v_cl.getProcessUnitID()) + std::string(".vtk"));
+		vtk_box4.write(output + std::string("external_ghost_") + std::to_string(v_cl.getProcessUnitID()) + std::string(".vtk"));*/
 
+		ie_ghost<dim,T>::write(output,v_cl.getProcessUnitID());
 		ie_loc_ghost<dim,T>::write(output,v_cl.getProcessUnitID());
 
 		return true;
@@ -1310,9 +1286,9 @@ p1[0]<-----+         +----> p2[0]
 
 		for (size_t p = 0 ; p < nn_prcs<dim,T>::getNNProcessors() ; p++)
 		{
-			for (size_t i = 0 ; i < getProcessorNEGhost(p) ; i++)
+			for (size_t i = 0 ; i < ie_ghost<dim,T>::getProcessorNEGhost(p) ; i++)
 			{
-				std::cout << getProcessorEGhostBox(p,i).toString() << "   prc=" << nn_prcs<dim,T>::IDtoProc(p) << "   id=" << getProcessorEGhostId(p,i) << "\n";
+				std::cout << ie_ghost<dim,T>::getProcessorEGhostBox(p,i).toString() << "   prc=" << nn_prcs<dim,T>::IDtoProc(p) << "   id=" << ie_ghost<dim,T>::getProcessorEGhostId(p,i) << "\n";
 			}
 		}
 
@@ -1320,9 +1296,9 @@ p1[0]<-----+         +----> p2[0]
 
 		for (size_t p = 0 ; p < nn_prcs<dim,T>::getNNProcessors() ; p++)
 		{
-			for (size_t i = 0 ; i < getProcessorNIGhost(p) ; i++)
+			for (size_t i = 0 ; i < ie_ghost<dim,T>::getProcessorNIGhost(p) ; i++)
 			{
-				std::cout << getProcessorIGhostBox(p,i).toString() << "   prc=" << nn_prcs<dim,T>::IDtoProc(p)  << "   id=" << getProcessorIGhostId(p,i) <<  "\n";
+				std::cout << ie_ghost<dim,T>::getProcessorIGhostBox(p,i).toString() << "   prc=" << nn_prcs<dim,T>::IDtoProc(p)  << "   id=" << ie_ghost<dim,T>::getProcessorIGhostId(p,i) <<  "\n";
 			}
 		}
 	}
