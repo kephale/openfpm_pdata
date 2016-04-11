@@ -1019,22 +1019,37 @@ public:
 			{
 				std::cout << std::setprecision(3) << unbalance << "\n";
 			}
-
-//			write(v_cl.getProcessUnitID() + "_"+ std::to_string(n_step) + "_AAAAAA");
-
-//			n_step++;
 		}
 
-		if (dlb.rebalanceNeeded())
+		if (dlb.rebalanceNeeded() && dlb.getHeurisitc() == DLB::Heuristic::SAR_HEURISTIC)
 		{
+
+			//Get re-balancing start time
+			long rc1 = clock();
+
 			rebalance(dlb.getNTimeStepSinceDLB());
+
+			//Get re-balancing end time
+			long rc = clock() - rc1;
+
+			//Get the average of the re-balancing cost
+			v_cl.sum(rc);
+			v_cl.execute();
+			rc /= v_cl.getProcessingUnits();
+
+			// Calculate the average between the previous cost and the last one
+			float oc = dlb.getComputationCost();
+			rc = (rc + oc) / 2;
+
+			dlb.setComputationCost(rc);
+
+			if(v_cl.getProcessUnitID() == 0)
+				std::cout << "Rebalance c = " << rc << std::endl ;
 
 			return true;
 		}
 		return false;
 	}
-
-//	size_t n_step = 0;
 
 	/*! \brief Get the current un-balance value
 	 *

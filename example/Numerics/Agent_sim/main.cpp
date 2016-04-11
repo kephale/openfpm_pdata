@@ -11,9 +11,6 @@
 
 #include "Vector/vector_dist.hpp"
 #include "Decomposition/CartDecomposition.hpp"
-#include "PSE/Kernels.hpp"
-#include "Plot/util.hpp"
-#include "Plot/GoogleChart.hpp"
 #include "data_type/aggregate.hpp"
 #include <cmath>
 
@@ -53,7 +50,6 @@ struct animal
 	{
 		boost::fusion::at_c<0>(data)[0] = boost::fusion::at_c<0>(p.data)[0];
 		boost::fusion::at_c<0>(data)[1] = boost::fusion::at_c<0>(p.data)[1];
-		//boost::fusion::at_c<0>(data)[2] = boost::fusion::at_c<0>(p.data)[2];
 		boost::fusion::at_c<1>(data) = boost::fusion::at_c<1>(p.data);
 		boost::fusion::at_c<2>(data) = boost::fusion::at_c<2>(p.data);
 		boost::fusion::at_c<3>(data) = boost::fusion::at_c<3>(p.data);
@@ -78,7 +74,6 @@ struct animal
 	{
 		boost::fusion::at_c<0>(data)[0] = p.template get<0>()[0];
 		boost::fusion::at_c<0>(data)[1] = p.template get<0>()[1];
-		//boost::fusion::at_c<0>(data)[2] = p.template get<0>()[2];
 		boost::fusion::at_c<1>(data) = p.template get<1>();
 		boost::fusion::at_c<2>(data) = p.template get<2>();
 		boost::fusion::at_c<3>(data) = p.template get<3>();
@@ -92,7 +87,7 @@ struct animal
 	}
 };
 
-const std::string animal::attributes::name[] = { "pos", "genre", "status", "time_a", "j_repr" };
+const std::string animal::attributes::name[] = { "pos", "genre", "status", "time_a" };
 
 int main(int argc, char* argv[])
 {
@@ -101,33 +96,33 @@ int main(int argc, char* argv[])
 	Vcluster & v_cl = *global_v_cluster;
 
 	//time the animal stays alive without eating
-	size_t PRED_TIME_A = 14;
+	size_t PRED_TIME_A = 10;
 
-	size_t PREY_TIME_A = 7;
+	size_t PREY_TIME_A = 20;
 
 	size_t PREDATOR = 1, PREY = 0;
 	size_t ALIVE = 1, DEAD = 0;
 
 	// Predators reproducing probability
-	float PRED_REPR = 0.2;
+	float PRED_REPR = 0.1;
 
 	// Predators eating probability
-	float PRED_EAT = 0.6;
+	float PRED_EAT = 0.3;
 
 	// Prey reproducing probability
-	float PREY_REPR = 0.5;
+	float PREY_REPR = 0.6;
 
 	// set the seed
 	// create the random generator engine
 	std::srand(v_cl.getProcessUnitID());
-	unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
-	std::default_random_engine eg(seed);
+	//unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+	std::default_random_engine eg;
 	std::uniform_real_distribution<float> ud(0.0f, 1.0f);
 	std::uniform_real_distribution<float> md(-1.0f, 1.0f);
-	std::uniform_real_distribution<float> uc(0.0f, 0.7f);
-	std::uniform_real_distribution<float> lc(0.3f, 1.0f);
+	std::uniform_real_distribution<float> uc(0.0f, 1.0f);
+	std::uniform_real_distribution<float> lc(0.0f, 1.0f);
 
-	size_t k = 100000;
+	size_t k = 50000;
 
 	Box<2, float> box( { 0.0, 0.0 }, { 1.0, 1.0 });
 
@@ -153,8 +148,10 @@ int main(int argc, char* argv[])
 	DLB dlb(v_cl);
 
 	// Set unbalance threshold
-	dlb.setHeurisitc(DLB::Heuristic::UNBALANCE_THRLD);
-	dlb.setThresholdLevel(DLB::ThresholdLevel::THRLD_MEDIUM);
+	dlb.setHeurisitc(DLB::Heuristic::SAR_HEURISTIC);
+	//dlb.setThresholdLevel(DLB::ThresholdLevel::THRLD_MEDIUM);
+
+	dlb.setComputationCost(2000);
 
 	auto it = vd.getIterator();
 
@@ -188,12 +185,14 @@ int main(int argc, char* argv[])
 
 	vd.map();
 
-	//vd.getDecomposition().getDistribution().write("parmetis_prey_predators_" + std::to_string(0) + ".vtk");
-	//vd.write("particles_", 0, NO_GHOST);
+	vd.getDecomposition().getDistribution().write("prey_predators_" + std::to_string(0));
+	vd.write("particles_", 0, NO_GHOST);
 
 	// 100 step random walk
 	for (size_t j = 0; j < 100; j++)
 	{
+		dlb.startIteration();
+
 		size_t prey = 0, predators = 0;
 
 		auto it = vd.getDomainIterator();
@@ -202,8 +201,8 @@ int main(int argc, char* argv[])
 		{
 			auto key = it.get();
 
-			vd.template getPos<animal::pos>(key)[0] += 0.01 * md(eg);
-			vd.template getPos<animal::pos>(key)[1] += 0.01 * md(eg);
+			vd.template getPos<animal::pos>(key)[0] += 0.005 * md(eg);
+			vd.template getPos<animal::pos>(key)[1] += 0.005 * md(eg);
 
 			if(vd.template getProp<animal::genre>(key) == PREY)
 			prey++;
@@ -215,6 +214,12 @@ int main(int argc, char* argv[])
 
 		vd.map();
 
+		float tot_p = vd.size_local();
+
+		v_cl.sum(tot_p);
+		v_cl.sum(prey);
+		v_cl.sum(predators);
+		v_cl.execute();
 
 		/////// Interactions ///
 		// get ghosts
@@ -249,7 +254,7 @@ int main(int argc, char* argv[])
 			{
 				if(gp == PREY)
 				{
-					if( prey < k/1.5 && ud(eg) < PREY_REPR )
+					if( prey < k/1.4 && ud(eg) < PREY_REPR )
 						reps_prey.add(p);
 
 					vd.getProp<animal::time_a>(p)--;
@@ -293,6 +298,8 @@ int main(int argc, char* argv[])
 
 									if( ud(eg) < PRED_REPR )
 										reps_pred.add(p);
+
+									break;
 								}
 							}
 							++Np;
@@ -354,7 +361,15 @@ int main(int argc, char* argv[])
 		vd.getDecomposition().rebalance(dlb);
 
 		vd.map();
+
+		dlb.endIteration();
+
+		vd.getDecomposition().getDistribution().write("prey_predators_" + std::to_string(j+1));
+		vd.write("particles_", j, NO_GHOST);
+
 	}
+
+	dlb.write();
 
 	//
 	// ### WIKI 10 ###

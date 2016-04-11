@@ -8,6 +8,9 @@
 #ifndef SRC_DECOMPOSITION_DLB_HPP_
 #define SRC_DECOMPOSITION_DLB_HPP_
 
+#include "Plot/GoogleChart.hpp"
+#include "Plot/util.hpp"
+
 //! Time structure for statistical purposes
 typedef struct
 {
@@ -87,6 +90,9 @@ private:
 	//! Threshold value
 	ThresholdLevel thl = THRLD_MEDIUM;
 
+	// Vector to store all the W values (need for output)
+	openfpm::vector<float> ws;
+
 	/*! \brief Function that gather times informations and decides if a rebalance is needed it uses the SAR heuristic
 	 *
 	 * \param t
@@ -95,7 +101,8 @@ private:
 	inline bool SAR()
 	{
 		long t = timeInfo.iterationEndTime - timeInfo.iterationStartTime;
-		float t_max = t, t_avg = t;
+		long t_max = t;
+		float t_avg = t;
 
 		// Exchange time informations through processors
 		v_cl.max(t_max);
@@ -112,6 +119,8 @@ private:
 
 		if (w_n == -1)
 			w_n = nw_n;
+
+		ws.add(nw_n);
 
 		if (nw_n > w_n)
 		{
@@ -268,13 +277,21 @@ public:
 		timeInfo.timeStep = t;
 	}
 
-	/*! \brief Set time step for the single iteration
+	/*! \brief Set the cost of the re-balancing
 	 *
 	 * \param computation value of the computation cost (default: 5)
 	 */
 	void setComputationCost(size_t computation)
 	{
 		c_c = computation;
+	}
+
+	/*! \brief Get the cost of the re-balancing
+	 *
+	 */
+	float getComputationCost()
+	{
+		return c_c;
 	}
 
 	/*! \brief Get how many time-steps have passed since the last re-balancing
@@ -301,6 +318,33 @@ public:
 	void setThresholdLevel(ThresholdLevel t)
 	{
 		thl = t;
+	}
+
+	/*! \brief print google chart of SAR
+	 *
+	 */
+	void write()
+	{
+		openfpm::vector<std::string> x;
+		openfpm::vector<openfpm::vector<float>> y;
+
+		for (size_t i = 0; i < ws.size(); i++)
+			x.add(std::to_string(i));
+
+		for (size_t i = 0; i < ws.size(); i++)
+			y.add( { ws.get(i) });
+
+		// Google charts options
+		GCoptions options;
+
+		options.title = std::string("SAR heuristic");
+		options.yAxis = std::string("W");
+		options.xAxis = std::string("Timestep");
+		options.lineWidth = 1.0;
+
+		GoogleChart cg;
+		cg.AddPointsGraph(x, y, options);
+		cg.write("SAR.html");
 	}
 
 };

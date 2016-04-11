@@ -164,7 +164,7 @@ class Parmetis
 			gid idx = m2g.find(i)->second;
 
 			// Add weight to vertex and migration cost
-			Mg.vwgt[j] = g.vertex(idx.id).template get<nm_v::computation>();
+			Mg.vwgt[j] = pow(g.vertex(idx.id).template get<nm_v::computation>(),2);
 			Mg.vsize[j] = g.vertex(idx.id).template get<nm_v::migration>();
 
 			// Calculate the starting point in the adjacency list
@@ -323,8 +323,6 @@ public:
 
 		// construct the adjacency list
 		constructAdjList(g, m2g);
-
-		//reset(g, vtxdist, m2g, w);
 	}
 
 	/*! \brief Decompose the graph
@@ -352,6 +350,9 @@ public:
 		// Refine
 
 		ParMETIS_V3_RefineKway((idx_t *) vtxdist.getPointer(), Mg.xadj, Mg.adjncy, Mg.vwgt, Mg.adjwgt, Mg.wgtflag, Mg.numflag, Mg.ncon, Mg.nparts, Mg.tpwgts, Mg.ubvec, Mg.options, Mg.edgecut, Mg.part, &comm);
+
+		//ParMETIS_V3_AdaptiveRepart((idx_t *) vtxdist.getPointer(), Mg.xadj, Mg.adjncy, Mg.vwgt, Mg.vsize, Mg.adjwgt, Mg.wgtflag, Mg.numflag, Mg.ncon, Mg.nparts, Mg.tpwgts, Mg.ubvec, Mg.itr, Mg.options, Mg.edgecut, Mg.part, &comm);
+
 	}
 
 	/*! \brief Get graph partition vector

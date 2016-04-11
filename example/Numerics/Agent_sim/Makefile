@@ -7,10 +7,10 @@ LDIR =
 OBJ = main.o
 
 %.o: %.cpp
-	$(CC) -O3 -g -c --std=c++11 -o $@ $< $(INCLUDE_PATH) -I/home/i-bird/HDF5/include
+	$(CC) -O3 -g -c --std=c++11 -o $@ $< $(INCLUDE_PATH) -I/Users/Antonio/HDF5/include 
 
 agsim: $(OBJ)
-	$(CC) -o $@ $^ $(CFLAGS) $(LIBS_PATH) $(LIBS)
+	$(CC) -o $@ $^ $(CFLAGS) $(LIBS_PATH) $(LIBS) -L/usr/local/lib -lparmetis -lmetis
 
 all: agsim
 
