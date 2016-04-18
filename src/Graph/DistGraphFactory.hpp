@@ -529,11 +529,11 @@ public:
 	}
 };
 
-/*! \brief This class construct a cartesian graph
+/*! \brief This class construct a Cartesian distributed graph
  *
- * This class construct a cartesian graph
+ * This class construct a Cartesian distributed graph
  *
- * \param dim dimensionality of the cartesian grid
+ * \param dim dimensionality of the Cartesian grid
  *
  */
 

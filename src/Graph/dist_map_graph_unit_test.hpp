@@ -135,24 +135,34 @@ BOOST_AUTO_TEST_CASE( dist_map_graph_use)
 	if(vcl.getProcessingUnits() != 4)
 		return;
 
-	//! Cartesian grid
+	//! [create distributed graph using a cartesian grid]
+
+	// Cartesian grid
 	size_t sz[2] = { DGRAPH_GS_SIZE, DGRAPH_GS_SIZE };
 
-	//! Box
+	// Box
 	Box<2, float> box( { 0.0, 0.0 }, { 1.0, 1.0 });
 
 	//! Distributed graph factory
 	DistGraphFactory<2, DistGraph_CSR<vx, ed>> g_factory;
 
-	//! Distributed graph
+	// Distributed graph
 	DistGraph_CSR<vx, ed> gd = g_factory.template construct<NO_EDGE, float, 2 - 1, 0, 1, 2>(sz, box);
 
-	//! [Request some vertices given global ids]
+	//! [create distributed graph using a cartesian grid]
 
+	//! [request vertices]
+
+	// request vertices given the global id
 	gd.reqVertex(13);
 	gd.reqVertex(1);
 	gd.reqVertex(14);
+
+	// call synchronization on the distributed graph
+	// after this the requested vertices are retrieved as ghost on this processor
 	gd.sync();
+
+	//! [request vertices]
 
 	gd.reqVertex(15);
 	gd.reqVertex(2);
@@ -161,34 +171,37 @@ BOOST_AUTO_TEST_CASE( dist_map_graph_use)
 
 	gd.deleteGhosts();
 
-	//! [Exchange n vertices and edges packed]
+	//! [move vertices and redistribute]
 
 	if(vcl.getProcessUnitID() == 0)
 	{
+		// put vertices in queue to be moved
 		for(size_t i = 0; i < 4; i++)
-		gd.q_move(i, 1);
+			gd.q_move(i, 1);
 	}
 
 	if(vcl.getProcessUnitID() == 1)
 	{
 		for(size_t i = 0; i < 4; i++)
-		gd.q_move(i, 0);
+			gd.q_move(i, 0);
 	}
 
 	if(vcl.getProcessUnitID() == 2)
 	{
 		for(size_t i = 0; i < 2; i++)
-		gd.q_move(i, 3);
+			gd.q_move(i, 3);
 	}
 
 	if(vcl.getProcessUnitID() == 3)
 	{
 		for(size_t i = 0; i < 4; i++)
-		gd.q_move(i, 2);
+			gd.q_move(i, 2);
 	}
 
-	//! Redistribute
+	// redistribute the vertices
 	gd.redistribute();
+
+	//! [move vertices and redistribute]
 
 	if(vcl.getProcessUnitID() == 0)
 	{
@@ -338,12 +351,12 @@ BOOST_AUTO_TEST_CASE( dist_map_graph_use_free_add)
 	// Initialize the global VCluster
 	init_global_v_cluster(&boost::unit_test::framework::master_test_suite().argc,&boost::unit_test::framework::master_test_suite().argv);
 
-	// [create graph adding freely the vertices and the edges ]
+	// [create graph adding freely the vertices and the edges]
 
 	// Distributed graph
 	DistGraph_CSR<vx, ed> gd;
 
-	// Add vertices
+	// add vertices
 	for (size_t i = 0; i < 4; ++i)
 	{
 		vx v;
@@ -354,7 +367,7 @@ BOOST_AUTO_TEST_CASE( dist_map_graph_use_free_add)
 		gd.add_vertex(v, gid);
 	}
 
-	// This method must be called after adding vertices
+	// this method must be called after adding vertices
 	gd.init();
 
 	// Add edges
@@ -398,9 +411,10 @@ BOOST_AUTO_TEST_CASE( dist_map_graph_use_free_add)
 		gd.add_edge(14,15);
 	}
 
+	// create edges across the sub-graphs
 	gd.syncEdge();
 
-	//! [create graph adding freely the vertices and the edges ]
+	//! [create graph adding freely the vertices and the edges]
 
 	if(vcl.getProcessUnitID() == 0)
 	{

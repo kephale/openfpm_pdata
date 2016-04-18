@@ -70,7 +70,7 @@
  * * Near processor sub-domain: is a sub-domain that live in the a near (or contiguous) processor
  * * Near processor list: the list of all the near processor of the local processor (each processor has a list
  *                        of the near processor)
- * * Local ghosts interal or external are all the ghosts that does not involve inter-processor communications
+ * * Local ghosts internal or external are all the ghosts that does not involve inter-processor communications
  *
  * \see calculateGhostBoxes() for a visualization of internal and external ghost boxes
  *
@@ -85,51 +85,51 @@ class CartDecomposition: public ie_loc_ghost<dim, T>, public nn_prcs<dim, T>, pu
 
 public:
 
-	//! Type of the domain we are going to decompose
+	// Type of the domain we are going to decompose
 	typedef T domain_type;
 
-	//! It simplify to access the SpaceBox element
+	// It simplify to access the SpaceBox element
 	typedef SpaceBox<dim, T> Box;
 
-	//! This class is base of itself
+	// This class is base of itself
 	typedef CartDecomposition<dim,T,Memory,Distribution> base_type;
 
-	//! This class admit a class defined on an extended domain
+	// This class admit a class defined on an extended domain
 	typedef CartDecomposition_ext<dim,T,Memory,Distribution> extended_type;
 
 protected:
 
-	//! This is the key type to access  data_s, for example in the case of vector
-	//! acc_key is size_t
+	// This is the key type to access  data_s, for example in the case of vector
+	// acc_key is size_t
 	typedef typename openfpm::vector<SpaceBox<dim, T>, Memory, openfpm::vector_grow_policy_default, openfpm::vect_isel<SpaceBox<dim, T>>::value>::access_key acc_key;
 
-	//! the set of all local sub-domain as vector
+	// the set of all local sub-domain as vector
 	openfpm::vector<SpaceBox<dim, T>> sub_domains;
 
-	//! for each sub-domain, contain the list of the neighborhood processors
+	// for each sub-domain, contain the list of the neighborhood processors
 	openfpm::vector<openfpm::vector<long unsigned int> > box_nn_processor;
 
-	//! Structure that contain for each sub-sub-domain box the processor id
-	//! exist for efficient global communication
+	// Structure that contain for each sub-sub-domain box the processor id
+	// exist for efficient global communication
 	openfpm::vector<size_t> fine_s;
 
-	//! Structure that store the cartesian grid information
+	// Structure that store the cartesian grid information
 	grid_sm<dim, void> gr;
 
-	//! Structure that decompose your structure into cell without creating them
-	//! useful to convert positions to CellId or sub-domain id in this case
+	// Structure that decompose your structure into cell without creating them
+	// useful to convert positions to CellId or sub-domain id in this case
 	CellDecomposer_sm<dim, T> cd;
 
-	//! rectangular domain to decompose
+	// rectangular domain to decompose
 	::Box<dim,T> domain;
 
-	//! Box Spacing
+	// Box Spacing
 	T spacing[dim];
 
-	//! Runtime virtual cluster machine
+	// Runtime virtual cluster machine
 	Vcluster & v_cl;
 
-	//! Create distribution
+	// Create distribution
 	Distribution dist;
 
 	// Smallest subdivision on each direction
@@ -137,10 +137,10 @@ protected:
 
 	::Box<dim,T> bbox;
 
-	// reference counter of the object in case is shared between object
+	// Reference counter of the object in case is shared between object
 	long int ref_cnt;
 
-	// ghost info
+	// Ghost info
 	Ghost<dim,T> ghost;
 
 	// Boundary condition info
@@ -175,8 +175,6 @@ protected:
 		sub_d.mul(spacing);
 		sub_d += domain.getP1();
 
-		// we add the
-
 		// Fixing sub-domains to cover all the domain
 
 		// Fixing sub_d
@@ -197,7 +195,6 @@ protected:
 protected:
 
 
-
 public:
 
 	/*! \brief Constructor, it decompose and distribute the sub-domains across the processors
@@ -215,7 +212,7 @@ public:
 		}
 #endif
 
-		int p_id = v_cl.getProcessUnitID();
+		size_t p_id = v_cl.getProcessUnitID();
 
 		// Calculate the total number of box and and the spacing
 		// on each direction
@@ -315,7 +312,7 @@ public:
 
 	/*! \brief Calculate communication and migration costs
 	 *
-	 * \param ts how many timesteps have passed since last calculation, used to approximate the cost
+	 * \param ts number of time-steps passed since last decomposition, used to approximate the cost
 	 */
 	void computeCommunicationAndMigrationCosts(size_t ts)
 	{
@@ -962,6 +959,9 @@ public:
 
 	}
 
+	/*! \brief Clear the main data structures
+	 *
+	 */
 	void reset()
 	{
 		sub_domains.clear();
@@ -1037,11 +1037,7 @@ public:
 			v_cl.execute();
 			rc /= v_cl.getProcessingUnits();
 
-			// Calculate the average between the previous cost and the last one
-			float oc = dlb.getComputationCost();
-			rc = (rc + oc) / 2;
-
-			dlb.setComputationCost(rc);
+			dlb.setComputationCost(rc*20);
 
 			if(v_cl.getProcessUnitID() == 0)
 				std::cout << "Rebalance c = " << rc << std::endl ;
@@ -1069,7 +1065,7 @@ public:
 		return dist.getProcessorLoad();
 	}
 
-	/*! \brief function that return the position of the cell in the space
+	/*! \brief Get the position of the cell in the space
 	 *
 	 * \param id vertex id
 	 * \param pos vector that will contain x, y, z
@@ -1080,7 +1076,6 @@ public:
 		dist.getSubSubDomainPosition(id, pos);
 	}
 
-	//TODO fix in Parmetis distribution to get only the right amount of vertices
 	/*! \brief Get the number of sub-sub-domains in this sub-graph
 	 *
 	 * \return number of sub-sub-domains in this sub-graph
@@ -1090,7 +1085,7 @@ public:
 		return dist.getNSubSubDomains();
 	}
 
-	/*! \brief function that set the weight of the vertex
+	/*! \brief Set the weight of the sub-sub-domain
 	 *
 	 * \param id vertex id
 	 *
@@ -1100,7 +1095,7 @@ public:
 		dist.setComputationCost(id, weight);
 	}
 
-	/*! \brief function that set the weight of the vertex
+	/*! \brief Get the weight of the sub-sub-domain
 	 *
 	 * \param id vertex id
 	 *

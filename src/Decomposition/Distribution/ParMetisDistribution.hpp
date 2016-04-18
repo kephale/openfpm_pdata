@@ -6,8 +6,8 @@
  */
 
 
-#ifndef SRC_DECOMPOSITION_PARMETISDISTRIBUTION_HPP_
-#define SRC_DECOMPOSITION_PARMETISDISTRIBUTION_HPP_
+#ifndef SRC_DECOMPOSITION_DISTRIBUTION_PARMETISDISTRIBUTION_HPP_
+#define SRC_DECOMPOSITION_DISTRIBUTION_PARMETISDISTRIBUTION_HPP_
 
 
 #include "SubdomainGraphNodes.hpp"
@@ -27,8 +27,8 @@
  * ### Initialize a Cartesian graph and decompose
  * \snippet Distribution_unit_tests.hpp Initialize a ParMetis Cartesian graph and decompose
  *
- * ### Refine the decomposition
- * \snippet Distribution_unit_tests.hpp refine with parmetis the decomposition
+ * ### Refine the decomposition with parmetis
+ * \snippet Distribution_unit_tests.hpp refine the decomposition with parmetis
  *
  */
 template<unsigned int dim, typename T>
@@ -128,18 +128,6 @@ class ParMetisDistribution
 				gp.vertex(v_per_proc.get(p).get(i).id).template get<nm_v::id>() = j.id;
 			}
 		}
-	}
-
-	void createMapsFromGlobalGraph(openfpm::vector<size_t> & vtxdist)
-	{
-/*		openfpm::vector<size_t> cnt_np;
-
-		for (size_t i = 0 ; i < gp.getNVertex() ; i++)
-		{
-			cnt_np(gp.template vertex<nm_v::proc_id>)++;
-
-			gp.setMapId()
-		}*/
 	}
 
 	/*! \brief operator to access the vertex by mapped position
@@ -299,7 +287,7 @@ public:
 
 	}
 
-	/*! \brief Get the current graph (main)
+	/*! \brief Get the graph of the distribution
 	 *
 	 */
 	Graph_CSR<nm_v, nm_e> & getGraph()
@@ -360,7 +348,7 @@ public:
 	/*! \brief Refine current decomposition
 	 *
 	 * It makes a refinement of the current decomposition using Parmetis function RefineKWay
-	 * After that it also does the remapping of the graph
+	 * After that it also does the re-mapping of the graph
 	 *
 	 */
 	void refine()
@@ -508,12 +496,9 @@ public:
 		// Processor id
 		size_t p_id = v_cl.getProcessUnitID();
 
-
 		for (rid i = vtxdist.get(p_id); i < vtxdist.get(p_id+1) ; ++i)
-		{
 			load += gp.vertex(m2g.find(i)->second.id).template get<nm_v::computation>();
-		}
-		//std::cout << v_cl.getProcessUnitID() << " weight " << load << " size " << sub_g.getNVertex() << "\n";
+
 		return load;
 	}
 
@@ -577,6 +562,10 @@ public:
 		gv2.write(std::to_string(v_cl.getProcessUnitID()) + "_" + file + ".vtk");
 	}
 
+	/*! \brief Operator definition for DistParMetisDistribution class
+	 *
+	 * \param dist
+	 */
 	const ParMetisDistribution<dim,T> & operator=(const ParMetisDistribution<dim,T> & dist)
 	{
 		gr = dist.gr;
@@ -590,6 +579,10 @@ public:
 		return *this;
 	}
 
+	/*! \brief Operator definition for DistParMetisDistribution class
+	 *
+	 * \param dist
+	 */
 	const ParMetisDistribution<dim,T> & operator=(ParMetisDistribution<dim,T> && dist)
 	{
 		v_cl = dist.v_cl;
@@ -605,4 +598,4 @@ public:
 	}
 };
 
-#endif /* SRC_DECOMPOSITION_PARMETISDISTRIBUTION_HPP_ */
+#endif /* SRC_DECOMPOSITION_DISTRIBUTION_PARMETISDISTRIBUTION_HPP_ */

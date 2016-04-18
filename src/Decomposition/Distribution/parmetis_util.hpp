@@ -87,7 +87,7 @@ struct Parmetis_graph
 //! Balance computation and comunication and others
 #define BALANCE_CC_O(c) c+1
 
-/*! \brief Helper class to define Metis graph
+/*! \brief Helper class to define Parmetis graph
  *
  * \tparam graph structure that store the graph
  *
@@ -95,13 +95,10 @@ struct Parmetis_graph
 template<typename Graph>
 class Parmetis
 {
-	// Graph in metis reppresentation
+	// Graph in Parmetis representation
 	Parmetis_graph Mg;
 
-	// Original graph
-	//	Graph & g;
-
-	// Communticator for OpenMPI
+	// Communicator for OpenMPI
 	MPI_Comm comm = NULL;
 
 	// VCluster
@@ -119,7 +116,7 @@ class Parmetis
 	// last re-mapped id
 	rid last;
 
-	// number of vertices that the processor has
+	// number of vertices belonging to this processor
 	size_t nvertex;
 
 	/*! \brief Construct Adjacency list
@@ -194,16 +191,13 @@ public:
 
 	/*! \brief Constructor
 	 *
-	 * Construct a metis graph from Graph_CSR
-	 *
-	 * \param g Graph we want to convert to decompose
+	 * \param v_cl vcluster object
 	 * \param nc number of partitions
 	 *
 	 */
 	Parmetis(Vcluster & v_cl, size_t nc) :
 			v_cl(v_cl), nc(nc)
 	{
-		// TODO Move into VCluster
 		MPI_Comm_dup(MPI_COMM_WORLD, &comm);
 
 		// Nullify Mg
@@ -226,10 +220,9 @@ public:
 		Mg.wgtflag = NULL;
 	}
 
-	//TODO deconstruct new variables
-	/*! \brief destructor
+	/*! \brief Deconstructor
 	 *
-	 * Destructor, It destroy all the memory allocated
+	 * Deconstructor, it destroy all the memory allocated
 	 *
 	 */
 	~Parmetis()
@@ -329,6 +322,8 @@ public:
 	 *
 	 * \tparam i which property store the decomposition
 	 *
+	 * \param vtxdist Distribution vector
+	 *
 	 */
 	template<unsigned int i>
 	void decompose(const openfpm::vector<rid> & vtxdist)
@@ -342,8 +337,8 @@ public:
 	 *
 	 * \tparam i which property store the refined decomposition
 	 *
+	 * \param Distribution vector
 	 */
-
 	template<unsigned int i>
 	void refine(openfpm::vector<rid> & vtxdist)
 	{
@@ -409,7 +404,7 @@ public:
 		constructAdjList(g, m2g);
 	}
 
-	/*! \brief Seth the default parameters for parmetis
+	/*! \brief Set the default parameters for parmetis
 	 *
 	 *
 	 */
@@ -474,6 +469,10 @@ public:
 			Mg.wgtflag[0] = 0;
 	}
 
+	/*! \brief Operator equal for parmetis_util_class
+	 *
+	 *  \param pm
+	 */
 	const Parmetis<Graph> & operator=(const Parmetis<Graph> & pm)
 	{
 		comm = pm.comm;
@@ -486,6 +485,10 @@ public:
 		return *this;
 	}
 
+	/*! \brief Operator equal for parmetis_util_class
+	 *
+	 *  \param pm
+	 */
 	const Parmetis<Graph> & operator=(Parmetis<Graph> && pm)
 	{
 		comm = pm.comm;

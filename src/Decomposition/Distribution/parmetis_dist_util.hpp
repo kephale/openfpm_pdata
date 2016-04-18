@@ -13,9 +13,9 @@
 #include "VTKWriter/VTKWriter.hpp"
 #include "VCluster.hpp"
 
-/*! \brief Metis graph structure
+/*! \brief Parmetis graph structure
  *
- * Metis graph structure
+ * Parmetis graph structure
  *
  */
 struct Parmetis_dist_graph
@@ -96,13 +96,13 @@ struct Parmetis_dist_graph
 template<typename Graph>
 class DistParmetis
 {
-	// Graph in metis reppresentation
+	// Graph in Parmetis representation
 	Parmetis_dist_graph Mg;
 
 	// Original graph
 	//	Graph & g;
 
-	// Communticator for OpenMPI
+	// Communicator for OpenMPI
 	MPI_Comm comm = NULL;
 
 	// VCluster
@@ -174,23 +174,19 @@ public:
 
 	/*! \brief Constructor
 	 *
-	 * Construct a metis graph from Graph_CSR
-	 *
-	 * \param g Graph we want to convert to decompose
+	 * \param v_cl vcluster object
 	 * \param nc number of partitions
 	 *
 	 */
 	DistParmetis(Vcluster & v_cl, size_t nc) :
 			v_cl(v_cl), nc(nc)
 	{
-		// TODO Move into VCluster
 		MPI_Comm_dup(MPI_COMM_WORLD, &comm);
 	}
 
-	//TODO deconstruct new variables
-	/*! \brief destructor
+	/*! \brief Deconstructor
 	 *
-	 * Destructor, It destroy all the memory allocated
+	 * Deconstructor, it destroy all the memory allocated
 	 *
 	 */
 	~DistParmetis()
@@ -342,8 +338,7 @@ public:
 	 *
 	 * \tparam i which property store the decomposition
 	 *
-	 *
-	 *
+	 * \param sub_g sub-graph
 	 */
 	template<unsigned int i>
 	void decompose(Graph & sub_g)
@@ -352,11 +347,6 @@ public:
 		// Decompose
 
 		ParMETIS_V3_PartKway((idx_t *) sub_g.getVtxdist()->getPointer(), Mg.xadj, Mg.adjncy, Mg.vwgt, Mg.adjwgt, Mg.wgtflag, Mg.numflag, Mg.ncon, Mg.nparts, Mg.tpwgts, Mg.ubvec, Mg.options, Mg.edgecut, Mg.part, &comm);
-		/*
-		 ParMETIS_V3_AdaptiveRepart( (idx_t *) vtxdist.getPointer(), Mg.xadj,Mg.adjncy,Mg.vwgt,Mg.vsize,Mg.adjwgt, Mg.wgtflag, Mg.numflag,
-		 Mg.ncon, Mg.nparts, Mg.tpwgts, Mg.ubvec, Mg.itr, Mg.options, Mg.edgecut,
-		 Mg.part, &comm );
-		 */
 
 		// For each vertex store the processor that contain the data
 		for (size_t id = 0, j = sub_g.firstId(); id < sub_g.getNVertex() && j <= sub_g.lastId(); id++, j++)
@@ -369,14 +359,14 @@ public:
 	 *
 	 * \tparam i which property store the refined decomposition
 	 *
+	 * \param sub_g sub-graph
 	 */
-
 	template<unsigned int i>
 	void refine(Graph & sub_g)
 	{
 		// Refine
-		//ParMETIS_V3_PartKway((idx_t *) sub_g.getVtxdist()->getPointer(), Mg.xadj, Mg.adjncy, Mg.vwgt, Mg.adjwgt, Mg.wgtflag, Mg.numflag, Mg.ncon, Mg.nparts, Mg.tpwgts, Mg.ubvec, Mg.options, Mg.edgecut, Mg.part, &comm);
-		ParMETIS_V3_AdaptiveRepart((idx_t *) sub_g.getVtxdist()->getPointer(), Mg.xadj, Mg.adjncy, Mg.vwgt, Mg.vsize, Mg.adjwgt, Mg.wgtflag, Mg.numflag, Mg.ncon, Mg.nparts, Mg.tpwgts, Mg.ubvec, Mg.itr, Mg.options, Mg.edgecut, Mg.part, &comm);
+		ParMETIS_V3_PartKway((idx_t *) sub_g.getVtxdist()->getPointer(), Mg.xadj, Mg.adjncy, Mg.vwgt, Mg.adjwgt, Mg.wgtflag, Mg.numflag, Mg.ncon, Mg.nparts, Mg.tpwgts, Mg.ubvec, Mg.options, Mg.edgecut, Mg.part, &comm);
+		//ParMETIS_V3_AdaptiveRepart((idx_t *) sub_g.getVtxdist()->getPointer(), Mg.xadj, Mg.adjncy, Mg.vwgt, Mg.vsize, Mg.adjwgt, Mg.wgtflag, Mg.numflag, Mg.ncon, Mg.nparts, Mg.tpwgts, Mg.ubvec, Mg.itr, Mg.options, Mg.edgecut, Mg.part, &comm);
 
 		// For each vertex store the processor that contain the data
 		for (size_t id = 0, j = sub_g.firstId(); id < sub_g.getNVertex() && j <= sub_g.lastId(); id++, j++)
@@ -433,6 +423,38 @@ public:
 		sub_g.deleteGhosts();
 
 		constructAdjList(sub_g);
+	}
+
+	/*! \brief Operator equal for parmetis_dist_util_class
+	 *
+	 *  \param pm
+	 */
+	const DistParmetis<Graph> & operator=(const DistParmetis<Graph> & pm)
+	{
+		comm = pm.comm;
+		v_cl = pm.v_cl;
+		p_id = pm.p_id;
+		nc = pm.nc;
+
+		setDefaultParameters(pm.Mg.wgtflag[0] == 3);
+
+		return *this;
+	}
+
+	/*! \brief Operator equal for parmetis_dist_util_class
+	 *
+	 *  \param pm
+	 */
+	const DistParmetis<Graph> & operator=(DistParmetis<Graph> && pm)
+	{
+		comm = pm.comm;
+		v_cl = pm.v_cl;
+		p_id = pm.p_id;
+		nc = pm.nc;
+
+		setDefaultParameters(pm.Mg.wgtflag[0] == 3);
+
+		return *this;
 	}
 }
 ;

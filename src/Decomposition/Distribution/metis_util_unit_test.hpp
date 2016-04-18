@@ -52,16 +52,13 @@ BOOST_AUTO_TEST_CASE( Metis_test_use)
 	Graph_CSR<nm_part_v,nm_part_e> gp = g_factory_part.construct<NO_EDGE,NO_VERTEX_ID,float,2>(sz,box,bc);
 
 	// Convert the graph to metis
-
 	Metis<Graph_CSR<nm_v,nm_e>> met(g,8);
 
 	// decompose
-
 	met.decompose<nm_part_v::id>(gp);
 	met.decompose<nm_v::proc_id>();
 
 	// Write the VTK file
-
 	VTKWriter<Graph_CSR<nm_part_v,nm_part_e>,VTK_GRAPH> vtk(gp);
 	vtk.write("vtk_metis_util_gp.vtk");
 
@@ -69,7 +66,6 @@ BOOST_AUTO_TEST_CASE( Metis_test_use)
 	vtk2.write("vtk_metis_util_g.vtk");
 
 	// check that match
-
 	bool test = compare("vtk_metis_util_gp.vtk","src/Decomposition/Distribution/test_data/vtk_metis_util_gp_test.vtk");
 	bool test2 = compare("vtk_metis_util_g.vtk","src/Decomposition/Distribution/test_data/vtk_metis_util_g_test.vtk");
 	BOOST_REQUIRE_EQUAL(true,test);

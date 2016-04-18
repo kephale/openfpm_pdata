@@ -51,94 +51,20 @@ template<unsigned int dim, typename Distribution> void setSphereComputationCosts
 	}
 }
 
-struct animal
-{
-	typedef boost::fusion::vector<float[2], size_t, size_t, size_t> type;
-
-	//! Attributes name
-	struct attributes
-	{
-		static const std::string name[];
-	};
-
-	//! type of the positional field
-	typedef float s_type;
-
-	//! The data
-	type data;
-
-	//! position property id in boost::fusion::vector
-	static const unsigned int pos = 0;
-	//! genre of animal property id in boost::fusion::vector
-	static const unsigned int genre = 1;
-	//! state property id in boost::fusion::vector
-	static const unsigned int status = 2;
-	//! alive time property id in boost::fusion::vector
-	static const unsigned int time_a = 3;
-
-	//! total number of properties boost::fusion::vector
-	static const unsigned int max_prop = 4;
-
-	animal()
-	{
-	}
-
-	inline animal(const animal & p)
-	{
-		boost::fusion::at_c<0>(data)[0] = boost::fusion::at_c<0>(p.data)[0];
-		boost::fusion::at_c<0>(data)[1] = boost::fusion::at_c<0>(p.data)[1];
-		//boost::fusion::at_c<0>(data)[2] = boost::fusion::at_c<0>(p.data)[2];
-		boost::fusion::at_c<1>(data) = boost::fusion::at_c<1>(p.data);
-		boost::fusion::at_c<2>(data) = boost::fusion::at_c<2>(p.data);
-		boost::fusion::at_c<3>(data) = boost::fusion::at_c<3>(p.data);
-	}
-
-	template<unsigned int id> inline auto get() -> decltype(boost::fusion::at_c < id > (data))
-	{
-		return boost::fusion::at_c<id>(data);
-	}
-
-	template<unsigned int id> inline auto get() const -> const decltype(boost::fusion::at_c < id > (data))
-	{
-		return boost::fusion::at_c<id>(data);
-	}
-
-	template<unsigned int dim, typename Mem> inline animal(const encapc<dim, animal, Mem> & p)
-	{
-		this->operator=(p);
-	}
-
-	template<unsigned int dim, typename Mem> inline animal & operator=(const encapc<dim, animal, Mem> & p)
-	{
-		boost::fusion::at_c<0>(data)[0] = p.template get<0>()[0];
-		boost::fusion::at_c<0>(data)[1] = p.template get<0>()[1];
-		//boost::fusion::at_c<0>(data)[2] = p.template get<0>()[2];
-		boost::fusion::at_c<1>(data) = p.template get<1>();
-		boost::fusion::at_c<2>(data) = p.template get<2>();
-		boost::fusion::at_c<3>(data) = p.template get<3>();
-
-		return *this;
-	}
-
-	static bool noPointers()
-	{
-		return true;
-	}
-};
-
-const std::string animal::attributes::name[] = { "pos", "genre", "status", "time_a", "j_repr" };
-
 BOOST_AUTO_TEST_SUITE (Distribution_test)
 
 BOOST_AUTO_TEST_CASE( Metis_distribution_test)
 {
+	// Vcluster object for global communications
 	Vcluster & v_cl = *global_v_cluster;
 
+	// This test works only with 3 processors
 	if (v_cl.getProcessingUnits() != 3)
-	return;
+		return;
 
+	// The test is executed only by processor 0
 	if (v_cl.getProcessUnitID() != 0)
-	return;
+		return;
 
 	//! [Initialize a Metis Cartesian graph and decompose]
 
@@ -180,16 +106,16 @@ BOOST_AUTO_TEST_CASE( Metis_distribution_test)
 	for (size_t i = 0; i < met_dist.getNSubSubDomains(); i++)
 	{
 		if (i == 0 || i == b || i == 2*b || i == 3*b || i == 4*b)
-		met_dist.setComputationCost(i,10);
+			met_dist.setComputationCost(i,10);
 		else
-		met_dist.setComputationCost(i,1);
+			met_dist.setComputationCost(i,1);
 
 		// We also show how to set some Communication and Migration cost
 
 		met_dist.setMigrationCost(i,1);
 
 		for (size_t j = 0; j < met_dist.getNSubSubDomainNeighbors(i); j++)
-		met_dist.setCommunicationCost(i,j,1);
+			met_dist.setCommunicationCost(i,j,1);
 	}
 
 	met_dist.decompose();
@@ -218,7 +144,7 @@ BOOST_AUTO_TEST_CASE( Metis_distribution_test)
 
 	BOOST_REQUIRE_EQUAL(test,true);
 
-	// We fix the size of MetisDistribution if you are gointg to change this number
+	// We fix the size of MetisDistribution if you are going to change this number
 	// please check the following
 	// duplicate functions
 	// swap functions
@@ -231,10 +157,12 @@ BOOST_AUTO_TEST_CASE( Metis_distribution_test)
 
 BOOST_AUTO_TEST_CASE( Parmetis_distribution_test)
 {
+	// Vcluster object for global communications
 	Vcluster & v_cl = *global_v_cluster;
 
+	// This test works only with 3 processors
 	if (v_cl.getProcessingUnits() != 3)
-	return;
+		return;
 
 	//! [Initialize a ParMetis Cartesian graph and decompose]
 
@@ -270,7 +198,7 @@ BOOST_AUTO_TEST_CASE( Parmetis_distribution_test)
 		BOOST_REQUIRE_EQUAL(true,test);
 	}
 
-	//! [refine with parmetis the decomposition]
+	//! [refine the decomposition with parmetis]
 
 	float stime = 0.0, etime = 10.0, tstep = 0.1;
 
@@ -282,9 +210,9 @@ BOOST_AUTO_TEST_CASE( Parmetis_distribution_test)
 	for(float t = stime; t < etime; t = t + tstep, iter++)
 	{
 		if(t < etime/2)
-		center += shift;
+			center += shift;
 		else
-		center -= shift;
+			center -= shift;
 
 		setSphereComputationCosts(pmet_dist, info, center, 2.0f, 5, 1);
 
@@ -306,15 +234,17 @@ BOOST_AUTO_TEST_CASE( Parmetis_distribution_test)
 		}
 	}
 
-	//! [refine with parmetis the decomposition]
+	//! [refine the decomposition with parmetis]
 
 	BOOST_REQUIRE_EQUAL(sizeof(MetisDistribution<3,float>),568ul);
 }
 
 BOOST_AUTO_TEST_CASE( DistParmetis_distribution_test)
 {
+	// Vcluster object for global communications
 	Vcluster & v_cl = *global_v_cluster;
 
+	// This test works only with 3 processors
 	if (v_cl.getProcessingUnits() != 3)
 		return;
 
@@ -341,7 +271,7 @@ BOOST_AUTO_TEST_CASE( DistParmetis_distribution_test)
 	// first decomposition
 	pmet_dist.decompose();
 
-	//! [Initialize a ParMetis Cartesian graph and decompose]
+	//! [Initialize a DistParMetis Cartesian graph and decompose]
 
 	// write the first decomposition
 	pmet_dist.write("vtk_dist_parmetis_distribution_0");
@@ -352,7 +282,7 @@ BOOST_AUTO_TEST_CASE( DistParmetis_distribution_test)
 		BOOST_REQUIRE_EQUAL(true,test);
 	}
 
-	//! [refine with dist_parmetis the decomposition]
+	//! [refine the decomposition with dist_parmetis]
 
 	float stime = 0.0, etime = 10.0, tstep = 0.1;
 
@@ -364,9 +294,9 @@ BOOST_AUTO_TEST_CASE( DistParmetis_distribution_test)
 	for(float t = stime; t < etime; t = t + tstep, iter++)
 	{
 		if(t < etime/2)
-		center += shift;
+			center += shift;
 		else
-		center -= shift;
+			center -= shift;
 
 		setSphereComputationCosts(pmet_dist, info, center, 2.0f, 5, 1);
 
@@ -388,7 +318,7 @@ BOOST_AUTO_TEST_CASE( DistParmetis_distribution_test)
 		}
 	}
 
-	//! [refine with dist_parmetis the decomposition]
+	//! [refine the decomposition with dist_parmetis]
 }
 
 void print_test_v(std::string test, size_t sz)

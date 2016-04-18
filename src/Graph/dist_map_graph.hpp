@@ -72,6 +72,12 @@
 template<typename V, typename E, template<typename, typename, typename, unsigned int> class VertexList, template<typename, typename, typename, unsigned int> class EdgeList, typename Memory, typename grow_p>
 class DistGraph_CSR;
 
+/*! \brief Class object for the vertex of the distributed graph
+ *
+ * 	It stores the id, and the global id of the vertex.
+ * 	NOTE: the id is the one that will be re-mapped in case of redistribution.
+ *
+ */
 class v_info
 {
 public:
@@ -128,6 +134,12 @@ public:
 	}
 };
 
+/*! \brief Class object for the edge of the distributed graph
+ *
+ * 	It stores the ids of the source and destination vertices.
+ * 	NOTE: the id is the one that will be re-mapped in case of redistribution.
+ *
+ */
 class e_info
 {
 public:
@@ -174,7 +186,7 @@ public:
 	}
 };
 
-/*! \brief Structure that store a graph in CSR format or basically in compressed adjacency matrix format
+/*! \brief Structure that store a distributed graph in CSR format or basically in compressed adjacency matrix format
  *
  * \param V each vertex will encapsulate have this type
  * \param E each edge will encapsulate this type
@@ -189,12 +201,21 @@ public:
  * \param VertexList structure that store the list of Vertex
  * \param EdgeList structure that store the list of edge
  *
- * \warning This graph is suitable only when we know the graph structure and we build
- * the graph adding vertexes and edges, removing vertex and edge is EXTREMLY expensive
  *
- * ### Example on creating graph, moving vertices and redistribution
- * \snippet dist_graph_unit_tests.hpp
+ * ### Create distributed graph using a cartesian grid
+ * \snippet dist_map_graph_unit_test.hpp create distributed graph using a cartesian grid
  *
+ * ### Request vertices
+ * \snippet dist_map_graph_unit_test.hpp request vertices
+ *
+ * ### Exchange vertices
+ * \snippet dist_map_graph_unit_test.hpp move vertices and redistribute
+ *
+ * ### Add vertices and edges to the graph
+ * \snippet dist_map_graph_unit_test.hpp create graph adding freely the vertices and the edges
+ *
+ * To better understand how the distributed graph stores a global knowledge, reference to this technical report on the data structures and algorithms used.
+ * [link to the tr]
  */
 
 template<typename V, typename E = no_edge, template<typename, typename, typename, unsigned int> class VertexList = openfpm::vector, template<typename, typename, typename, unsigned int> class EdgeList = openfpm::vector, typename Memory = HeapMemory,
@@ -210,7 +231,7 @@ class DistGraph_CSR
 	// Fixed distribution vector, it never changes, it maintains always the first decomposition and topology
 	openfpm::vector<idx_t> fvtxdist;
 
-	// number of slot per vertex
+	// Number of slot per vertex
 	size_t v_slot;
 
 	// Structure that store the vertex properties
@@ -277,10 +298,12 @@ class DistGraph_CSR
 		size_t pid;
 	} GlobalVInfo;
 
-	//TODO update description from pdf
-	// Map of GlobalVInfo containing informations of vertices of the INITIAL distribution contained in this processor
-	// ex. if this will contain the first 4 vertices of the distribution (0,1,2,3) it will maintain informations only about these vertices
-	// The key is the vertex global id
+	// Map that stores the information (id, processor id) about some vertices of the graph
+	// Each processor will store the information about a certain number of vertices, independently from the redistribution
+	// of the graph. In this way each processor is always in charge to keep updated the information about always the same
+	// vertices. If a processor wants to find out where a vertex is, it will ask to the processor containing the information
+	// (id, processor id) about this vertex.
+	// The key of the map is the vertex global id
 	std::unordered_map<size_t, GlobalVInfo> glbi_map;
 
 	// Queue of vertex requests
@@ -458,7 +481,7 @@ class DistGraph_CSR
 		}
 	}
 
-	/*! \brief Remove from this graph the vertices that have been sent
+	/*! \brief Remove from this graph the vertices that have been sent somewhere else
 	 *
 	 */
 	void deleteMovedVertices()
@@ -530,7 +553,7 @@ class DistGraph_CSR
 
 	/*! \brief Send and receive vertices and update current graph
 	 *
-	 * \tparam Remove the sent sub-graph
+	 * \tparam true if received vertices are treated as ghost vertices, in this case sent vertices are not deleted
 	 *
 	 */
 	template<bool addAsGhosts>
@@ -598,7 +621,7 @@ class DistGraph_CSR
 
 			// allocate the memory
 			HeapMemory & pmem = *(new HeapMemory());
-//			pmem.allocate(req);
+			//pmem.allocate(req); TOCHECK
 			ExtPreAlloc<HeapMemory> & mem = *(new ExtPreAlloc<HeapMemory>(pap_prp, pmem));
 			mem.incRef();
 
@@ -734,11 +757,15 @@ class DistGraph_CSR
 		}
 	}
 
-	/*! \brief Re-map received vertices in order to have ordered vertex ids
+	/*! \brief Re-map received vertices
+	 *
+	 *  Re-map is needed in order to have ordered vertex ids through the processors.
+	 *  It is also neeeded to make the distribution vector coherent.
 	 *
 	 */
 	void remap()
 	{
+		// processor id
 		size_t p_id = vcl.getProcessUnitID();
 
 		typedef struct
@@ -750,13 +777,15 @@ class DistGraph_CSR
 		} IdnProc;
 
 		// Map that will contain the couples to update the global info map in this processor
-		// The key is the (old vertex id)
+		// The key is the old vertex id
 		std::unordered_map<size_t, IdnProc> on_toup;
 
 		// For each processor old, new couples
 		openfpm::vector<openfpm::vector<size_t>> on_info(vcl.getProcessingUnits());
 
+		//create ordered map from the glb2loc map
 		std::map<size_t, size_t> old_glob2loc(glb2loc.begin(), glb2loc.end());
+
 		size_t j = vtxdist.get(p_id);
 		size_t i = 0, k = 0;
 
@@ -765,7 +794,7 @@ class DistGraph_CSR
 		glb2id.clear();
 		glb2loc.clear();
 
-		// Fix sending couples gid, newid and remove on_toup updating glbi_map here and after receive
+		//TODO Fix sending couples gid, newid and remove on_toup updating glbi_map here and after receive
 		for (auto it : old_glob2loc)
 		{
 			// The couple to the final map, needed to update the vertices in this sub-graph
@@ -905,7 +934,7 @@ class DistGraph_CSR
 		}
 	}
 
-	/*! \brief Initialize the fixed structure for global mapping. See glbiv for details.
+	/*! \brief Initialize the fixed structure for global mapping. See glbi_map for details.
 	 *
 	 */
 	void initGlbimap()
@@ -921,16 +950,16 @@ class DistGraph_CSR
 		}
 	}
 
-	/*! \brief Get the processor id of the processor containing the vertex with global id vid
+	/*! \brief Get the processor id of the processor containing the information about a vertex
 	 *
-	 * \param vid vertex to know info about
+	 * \param gid vertex global id to know info about
 	 * \return the processor id
 	 */
-	size_t getInfoProc(size_t vid)
+	size_t getInfoProc(size_t gid)
 	{
 		for (size_t i = 0; i < fvtxdist.size() - 1; ++i)
 		{
-			if (vid >= (size_t)fvtxdist.get(i) && vid < (size_t)fvtxdist.get(i + 1))
+			if (gid >= (size_t)fvtxdist.get(i) && gid < (size_t)fvtxdist.get(i + 1))
 			{
 				return i;
 			}
@@ -1073,6 +1102,39 @@ public:
 		resetExchange();
 	}
 
+	/*! \brief Copy constructor
+	 *
+	 */
+	DistGraph_CSR(Vcluster & vcl, DistGraph_CSR<V, E, VertexList, EdgeList, Memory> && g) :
+			vcl(vcl)
+	{
+		swap(g);
+	}
+
+	/*! \breif Copy the graph
+	 *
+	 * \param g graph to copy
+	 *
+	 */
+	DistGraph_CSR<V, E, VertexList, EdgeList, Memory> & operator=(DistGraph_CSR<V, E, VertexList, EdgeList, Memory> && g)
+	{
+		swap(g);
+
+		return *this;
+	}
+
+	/*! \breif Copy the graph
+	 *
+	 * \param g graph to copy
+	 *
+	 */
+	DistGraph_CSR<V, E, VertexList, EdgeList, Memory> & operator=(const DistGraph_CSR<V, E, VertexList, EdgeList, Memory> & g)
+	{
+		swap(g.duplicate());
+
+		return *this;
+	}
+
 	/*! \brief Operator to access the decomposition vector
 	 *
 	 * \param v vector that will contain the decomposition
@@ -1125,39 +1187,6 @@ public:
 		{
 			fvtxdist.get(i) = vtxdist.get(i);
 		}
-	}
-
-	/*! \brief Copy constructor
-	 *
-	 */
-	DistGraph_CSR(Vcluster & vcl, DistGraph_CSR<V, E, VertexList, EdgeList, Memory> && g) :
-			vcl(vcl)
-	{
-		swap(g);
-	}
-
-	/*! \breif Copy the graph
-	 * 
-	 * \param g graph to copy
-	 * 
-	 */
-	DistGraph_CSR<V, E, VertexList, EdgeList, Memory> & operator=(DistGraph_CSR<V, E, VertexList, EdgeList, Memory> && g)
-	{
-		swap(g);
-
-		return *this;
-	}
-
-	/*! \breif Copy the graph
-	 * 
-	 * \param g graph to copy
-	 * 
-	 */
-	DistGraph_CSR<V, E, VertexList, EdgeList, Memory> & operator=(const DistGraph_CSR<V, E, VertexList, EdgeList, Memory> & g)
-	{
-		swap(g.duplicate());
-
-		return *this;
 	}
 
 	/*! \brief operator to access the vertex
@@ -1287,27 +1316,27 @@ public:
 
 	/*! \brief Function to access the vertexes
 	 *
-	 * \param id GLOBAL id of the vertex to access
+	 * \param gid gloabal id of the vertex to access
 	 *
 	 */
-	auto getVertex(size_t id) const -> const decltype( v.get(0) )
+	auto getVertex(size_t gid) const -> const decltype( v.get(0) )
 	{
 		try
 		{
-			return v.get(glb2loc.at(id));
+			return v.get(glb2loc.at(gid));
 		} catch (const std::out_of_range& oor)
 		{
-			std::cerr << "The vertex with global id " << id << " is not in this sub-graph. Try to call reqVertex(" << id << ") and sync() first.\n";
+			std::cerr << "The vertex with global id " << gid << " is not in this sub-graph. Try to call reqVertex(" << gid << ") and sync() first.\n";
 		}
 
 		return v.get(0);
 	}
 
-	/*! \brief operator to access the vertex position index by id property
-	 *
-	 * operator to access the vertex
+	/*! \brief Function to access the vertex position index by id property
 	 *
 	 * \param id id of the vertex to access
+	 *
+	 * \return the local id of the vertex
 	 *
 	 */
 	size_t nodeById(size_t id) const
@@ -1323,9 +1352,10 @@ public:
 		return 0;
 	}
 
-	/*! /brief Get the first id of the graph
+	/*! \brief Get the first id of the graph
 	 *
 	 * \return the first id of the graph
+	 *
 	 */
 	size_t firstId() const
 	{
@@ -1380,7 +1410,7 @@ public:
 		}
 	}
 
-	/*! \brief operator to update all the hashmap
+	/*! \brief Function to re-map a vertex
 	 *
 	 * \param n new vertex id
 	 * \param g global vertex id
@@ -1397,9 +1427,7 @@ public:
 		v_m.get(l).template get<v_info::id>() = n;
 	}
 
-	/*! \brief operator to clear the whole graph
-	 *
-	 * operator to clear all
+	/*! \brief Function to clear the whole graph
 	 *
 	 */
 	void clear()
@@ -1678,6 +1706,10 @@ public:
 	 *
 	 * \param vrt vertex object to add
 	 * \param gid global id, unique in global graph
+	 *
+	 * \tparam dim dimension of the grid of encapc
+	 * \tparam T type of object the grid store, in this case must be the vertex object
+	 * \tparam Mem suppose to be a boost::fusion::vector of arrays
 	 */
 	template<unsigned int dim, typename Mem> inline void add_vertex(const encapc<dim, V, Mem> & vrt, size_t id, size_t gid)
 	{
@@ -1741,6 +1773,14 @@ public:
 		id2glb.insert( { i, g });
 	}
 
+	/*! \brief Add edge between two vertices
+	 *
+	 * \param v1 id of the source vertex
+	 * \param v2 id of the destination vertex
+	 * \param srcgid global id of the source vertex
+	 * \param dstgid global id of the destination vertex
+	 *
+	 */
 	inline auto addEdge(size_t v1, size_t v2, size_t srcgid, size_t dstgid) -> decltype(e.get(0))
 	{
 		// add an edge
@@ -1757,6 +1797,15 @@ public:
 		return e.get(id_x_end);
 	}
 
+	/*! \brief Add an edge object between two vertices
+	 *
+	 * \param v1 id of the source vertex
+	 * \param v2 id of the destination vertex
+	 * \param srcgid global id of the source vertex
+	 * \param dstgid global id of the destination vertex
+	 * \param ed edge object
+	 *
+	 */
 	inline auto addEdge(size_t v1, size_t v2, size_t srcgid, size_t dstgid, const E & ed) -> decltype(e.get(0))
 	{
 		// add an edge
@@ -1776,6 +1825,14 @@ public:
 		return e.get(id_x_end);
 	}
 
+	/*! \brief Add edge between two vertices
+	 *
+	 * \param v1 id of the source vertex
+	 * \param v2 id of the destination vertex
+	 * \param ed edge object
+	 * \param ei edge information object
+	 *
+	 */
 	template<unsigned int dim, typename Mem, typename Mem1> inline auto addEdge(size_t v1, size_t v2, const encapc<dim, E, Mem> & ed, const encapc<dim, e_info, Mem1> & ei) -> decltype(e.get(0))
 	{
 		// add an edge
@@ -1792,6 +1849,14 @@ public:
 		return e.get(id_x_end);
 	}
 
+	/*! \brief Add edge between two vertices
+	 *
+	 * \param v1 id of the source vertex
+	 * \param v2 id of the destination vertex
+	 * \param ed edge object
+	 * \param ei edge information object
+	 *
+	 */
 	inline auto addEdge(size_t v1, size_t v2, const E & ed, const e_info & ei) -> decltype(e.get(0))
 	{
 		// add an edge
@@ -1836,6 +1901,7 @@ public:
 	 *
 	 * \param v1 source vertex of the edge
 	 * \param v2 destination vertex of the edge
+	 *
 	 */
 	template<typename CheckPolicy = NoCheck> inline void add_edge(size_t v1, size_t v2)
 	{
@@ -1899,7 +1965,6 @@ public:
 		}
 
 		e_queue.clear();
-
 	}
 
 	/*! \brief Swap the memory of g with this graph
@@ -1954,7 +2019,7 @@ public:
 	 *
 	 * Get the vertex iterator
 	 *
-	 * \return an iterator to iterate through all the vertex
+	 * \return an iterator to iterate through all the vertex in this subgraph
 	 *
 	 */
 	inline auto getVertexIterator() const -> decltype(v.getIterator())
@@ -2004,7 +2069,9 @@ public:
 		return e.size();
 	}
 
-	/*! \brief Once added all the vertices this function must be called to initialize all the properties, useless if a graph factory is used
+	/*! \brief Init the graph
+	 *
+	 * Once added all the vertices this function must be called to initialize all the properties, useless if a graph factory is used
 	 *
 	 */
 	void init()
@@ -2019,6 +2086,7 @@ public:
 	/*! \brief Check if a vertex is a ghost vertex (not belonging to this processor)
 	 *
 	 * \param id id of the vertex to check
+	 *
 	 * \return true if it is a ghost vertex
 	 */
 	bool isGhost(size_t id)
@@ -2078,7 +2146,7 @@ public:
 	 * \param i vertex to send
 	 * \param t target processor
 	 */
-	template<bool toRemove = true> //TODO make it private and create wrapper in public
+	template<bool toRemove = true>
 	void q_move(size_t i, size_t t)
 	{
 		// Check if a 'useless' move has been requested

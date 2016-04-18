@@ -8,50 +8,6 @@ BOOST_AUTO_TEST_SUITE (CartDecomposition_test)
 
 #define SUB_UNIT_FACTOR 1024
 
-void setComputationCosts(CartDecomposition<2, float> &dec, size_t n_v, Point<2, float> center, float radius, size_t weight_h, size_t weight_l)
-{
-	float radius2 = pow(radius, 2);
-	float eq;
-
-	// Position structure for the single vertex
-	float pos[2];
-
-	for (size_t i = 0; i < n_v; i++)
-	{
-		dec.getSubSubDomainPosition(i, pos);
-
-		eq = pow((pos[0] - center.get(0)), 2) + pow((pos[1] - center.get(1)), 2);
-
-		if (eq <= radius2)
-			dec.setSubSubDomainComputationCost(i, weight_h);
-		else
-			dec.setSubSubDomainComputationCost(i, weight_l);
-	}
-}
-
-void setComputationCosts3D(CartDecomposition<3, float> &dec, size_t n_v, Point<3, float> center, float radius, size_t weight_h, size_t weight_l)
-{
-	float radius2 = radius * radius;
-	float eq;
-
-	// Position structure for the single vertex
-	float pos[3];
-
-	for (size_t i = 0; i < n_v; i++)
-	{
-		dec.getSubSubDomainPosition(i, pos);
-
-		eq = pow((pos[0] - center.get(0)), 2) + pow((pos[1] - center.get(1)), 2) + pow((pos[2] - center.get(2)), 2);
-
-		if (eq <= radius2)
-			dec.setSubSubDomainComputationCost(i, weight_h);
-		else
-			dec.setSubSubDomainComputationCost(i, weight_l);
-	}
-}
-
-
-
 BOOST_AUTO_TEST_CASE( CartDecomposition_non_periodic_test)
 {
 	// Vcluster

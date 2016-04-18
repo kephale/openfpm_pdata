@@ -5,48 +5,56 @@
  *      Author: Antonio Leo
  */
 
-#ifndef SRC_DECOMPOSITION_DISTPARMETISDISTRIBUTION_HPP_
-#define SRC_DECOMPOSITION_DISTPARMETISDISTRIBUTION_HPP_
+#ifndef SRC_DECOMPOSITION_DISTRIBUTION_DISTPARMETISDISTRIBUTION_HPP_
+#define SRC_DECOMPOSITION_DISTRIBUTION_DISTPARMETISDISTRIBUTION_HPP_
 
 #include "SubdomainGraphNodes.hpp"
 #include "parmetis_dist_util.hpp"
 #include "Graph/dist_map_graph.hpp"
 #include "Graph/DistGraphFactory.hpp"
 
+/*! \brief Class that distribute sub-sub-domains across processors using ParMetis Library (totally distributed version)
+ *
+ * Given a graph and setting Computational cost, Communication cost (on the edge) and
+ * Migration cost or total Communication costs, it produce the optimal balanced distribution
+ *
+ * In addition to Metis it provide the functionality to refine the previously computed
+ * decomposition
+ *
+ * It uses a distributed graph (DistGraph_CSR) to store the distribution
+ *
+ * ### Initialize a DistParMetis Cartesian graph and decompose
+ * \snippet Distribution_unit_tests.hpp Initialize a DistParMetis Cartesian graph and decompose
+ *
+ * ### refine the decomposition with dist_parmetis
+ * \snippet Distribution_unit_tests.hpp refine with parmetis the decomposition
+ *
+ */
 template<unsigned int dim, typename T>
 class DistParMetisDistribution
 {
-	//! Vcluster
+	// Vcluster
 	Vcluster & v_cl;
 
-	//! Structure that store the cartesian grid information
+	// Structure storing the Cartesian grid information
 	grid_sm<dim, void> gr;
 
-	//! rectangular domain to decompose
+	// Rectangular domain to decompose
 	Box<dim, T> domain;
 
-	//! Processor sub-sub-domain graph
+	// Processor sub-sub-domain graph
 	DistGraph_CSR<nm_v, nm_e> g;
 
-	//! Convert the graph to parmetis format
+	// Graph in the Parmetis format
 	DistParmetis<DistGraph_CSR<nm_v, nm_e>> parmetis_graph;
 
-	//! Init vtxdist needed for Parmetis
+	// Distribution vector needed for Parmetis
 	openfpm::vector<idx_t> vtxdist;
 
-	//! partitions
+	// Vector containing the partitions computed by Parmetis
 	openfpm::vector<openfpm::vector<idx_t>> partitions;
 
-	//! Init data structure to keep trace of new vertices distribution in processors (needed to update main graph)
-	openfpm::vector<openfpm::vector<size_t>> v_per_proc;
-
-	//! Number of moved vertices in all iterations
-	size_t g_moved = 0;
-
-	//! Max number of moved vertices in all iterations
-	size_t m_moved = 0;
-
-	//! Flag to check if weights are used on vertices
+	// Flag to check if weights are set on vertices
 	bool verticesGotWeights = false;
 
 	/*! \brief Callback of the sendrecv to set the size of the array received
@@ -69,28 +77,27 @@ class DistParMetisDistribution
 
 public:
 
-	/*! Constructor for the ParMetis class
+	/*! Constructor for the DistParMetis class
 	 *
-	 * @param v_cl Vcluster to use as communication object in this class
+	 * \param v_cl Vcluster to use as communication object in this class
 	 */
 	DistParMetisDistribution(Vcluster & v_cl) :
-			v_cl(v_cl), parmetis_graph(v_cl, v_cl.getProcessingUnits()), vtxdist(v_cl.getProcessingUnits() + 1), partitions(v_cl.getProcessingUnits()), v_per_proc(v_cl.getProcessingUnits())
-
+			v_cl(v_cl), parmetis_graph(v_cl, v_cl.getProcessingUnits()), vtxdist(v_cl.getProcessingUnits() + 1), partitions(v_cl.getProcessingUnits())
 	{
 	}
 
 	/*! \brief Initialize the distribution graph
 	 *
-	 * /param grid Grid
-	 * /param dom Domain
+	 * \param grid Grid of the decomposition
+	 * \param dom Domain of the simulation
 	 */
 	void createCartGraph(grid_sm<dim, void> & grid, Box<dim, T> dom)
 	{
-		//! Set grid and domain
+		// Set grid and domain
 		gr = grid;
 		domain = dom;
 
-		//! Create sub graph
+		// Create sub graph
 		DistGraphFactory<dim, DistGraph_CSR<nm_v, nm_e>> dist_g_factory;
 		g = dist_g_factory.template construct<NO_EDGE, T, dim - 1, 0>(gr.getSize(), domain);
 		g.getDecompositionVector(vtxdist);
@@ -101,7 +108,7 @@ public:
 
 	}
 
-	/*! \brief Get the current graph (main)
+	/*! \brief Get the decomposition graph of the processor
 	 *
 	 */
 	DistGraph_CSR<nm_v, nm_e> & getGraph()
@@ -109,20 +116,23 @@ public:
 		return g;
 	}
 
-	/*! \brief Create first decomposition, it divides the graph in slices and give each slice to a processor
+	/*! \brief Decompose the graph using Parmetis
+	 *
+	 *	Decompose the graph using the PartKway algorithm
 	 *
 	 */
 	void decompose()
 	{
-		//! Init sub graph in parmetis format
+		// Initialize sub graph in Parmetis format
 		parmetis_graph.initSubGraph(g);
 
-		//! Decompose
+		// Decompose
 		parmetis_graph.decompose<nm_v::proc_id>(g);
 
-		//! Get result partition for this processors
+		// Get result partition for this processors
 		idx_t *partition = parmetis_graph.getPartition();
 
+		// Send the vertices in the processors accordingly to the partition vector
 		for (size_t i = 0, j = g.firstId(); i < g.getNVertex() && j <= g.lastId(); i++, j++)
 		{
 			if ((size_t)partition[i] != v_cl.getProcessUnitID())
@@ -131,7 +141,7 @@ public:
 		g.redistribute();
 	}
 
-	/*! \brief Refine current decomposition
+	/*! \brief Refine current decomposition using Parmetis
 	 *
 	 * It makes a refinement of the current decomposition using Parmetis function RefineKWay
 	 * After that it also does the remapping of the graph
@@ -139,15 +149,16 @@ public:
 	 */
 	void refine()
 	{
-		//! Reset parmetis graph and reconstruct it
+		// Reset parmetis graph and reconstruct it
 		parmetis_graph.reset(g);
 
-		//! Refine
+		// Refine
 		parmetis_graph.refine<nm_v::proc_id>(g);
 
-		//! Get result partition for this processors
+		// Get result partition for this processors
 		idx_t *partition = parmetis_graph.getPartition();
 
+		// Send the vertices in the processors accordingly to the partition vector
 		for (size_t i = 0, j = g.firstId(); i < g.getNVertex() && j <= g.lastId(); i++, j++)
 		{
 			if ((size_t)partition[i] != v_cl.getProcessUnitID())
@@ -156,9 +167,9 @@ public:
 		g.redistribute();
 	}
 
-	/*! \brief Compute the unbalance value
+	/*! \brief Compute the un-balance value
 	 *
-	 * \return the unbalance value
+	 * \return the un-balance value
 	 */
 	float getUnbalance()
 	{
@@ -181,7 +192,7 @@ public:
 		return unbalance * 100;
 	}
 
-	/*! \brief function that return the position of the vertex in the space
+	/*! \brief Function that return the position of the vertex in the space
 	 *
 	 * \param id vertex id
 	 * \param pos vector that will contain x, y, z
@@ -225,7 +236,7 @@ public:
 		return verticesGotWeights;
 	}
 
-	/*! \brief function that get the weight of the vertex
+	/*! \brief Function that get the weight of the vertex
 	 *
 	 * \param id vertex id
 	 *
@@ -240,7 +251,7 @@ public:
 
 	/*! \brief Compute the processor load counting the total weights of its vertices
 	 *
-	 * \return the computational load of the processor graph
+	 * \return The computational load of the processor graph
 	 */
 	size_t getProcessorLoad()
 	{
@@ -253,33 +264,9 @@ public:
 		return load;
 	}
 
-	/*! \brief return number of moved vertices in all iterations so far
+	/*! \brief Set migration cost of the vertex
 	 *
-	 * \param id vertex id
-	 *
-	 * \return vector with x, y, z
-	 *
-	 */
-	size_t getTotalMovedV()
-	{
-		return g_moved;
-	}
-
-	/*! \brief return number of moved vertices in all iterations so far
-	 *
-	 * \param id vertex id
-	 *
-	 * \return vector with x, y, z
-	 *
-	 */
-	size_t getMaxMovedV()
-	{
-		return m_moved;
-	}
-
-	/*! \brief Set migration cost of the vertex id
-	 *
-	 * \param id of the vertex to update
+	 * \param id of the vertex
 	 * \param migration cost of the migration
 	 */
 	void setMigrationCost(size_t id, size_t migration)
@@ -301,7 +288,7 @@ public:
 		g.getChildEdge(v_id, e).template get<nm_e::communication>() = communication;
 	}
 
-	/*! \brief Returns total number of sub-sub-domains in the distribution graph
+	/*! \brief Returns total number of sub-sub-domains in the distribution graph (number of vertices in the graph)
 	 *
 	 */
 	size_t getNSubSubDomains()
@@ -309,7 +296,7 @@ public:
 		return g.getNVertex();
 	}
 
-	/*! \brief Returns total number of neighbors of the sub-sub-domain id
+	/*! \brief Returns total number of neighbors of the sub-sub-domain
 	 *
 	 * \param i id of the sub-sub-domain
 	 */
@@ -330,6 +317,10 @@ public:
 		gv2.write(std::to_string(file + ".vtk"));
 	}
 
+	/*! \brief Operator definition for DistParMetisDistribution class
+	 *
+	 * \param dist
+	 */
 	const DistParMetisDistribution<dim, T> & operator=(const DistParMetisDistribution<dim, T> & dist)
 	{
 		v_cl = dist.v_cl;
@@ -338,12 +329,15 @@ public:
 		g = dist.g;
 		vtxdist = dist.vtxdist;
 		partitions = dist.partitions;
-		v_per_proc = dist.v_per_proc;
 		verticesGotWeights = dist.verticesGotWeights;
 
 		return *this;
 	}
 
+	/*! \brief Operator definition for DistParMetisDistribution class
+	 *
+	 *	\param dist
+	 */
 	const DistParMetisDistribution<dim, T> & operator=(const DistParMetisDistribution<dim, T> && dist)
 	{
 		v_cl = dist.v_cl;
@@ -352,12 +346,10 @@ public:
 		g.swap(dist.g);
 		vtxdist.swap(dist.vtxdist);
 		partitions.swap(dist.partitions);
-		v_per_proc.swap(dist.v_per_proc);
 		verticesGotWeights = dist.verticesGotWeights;
 
 		return *this;
 	}
-}
-;
+};
 
-#endif /* SRC_DECOMPOSITION_PARMETISDISTRIBUTION_HPP_ */
+#endif /* SRC_DECOMPOSITION_DISTRIBUTION_DISTPARMETISDISTRIBUTION_HPP_ */

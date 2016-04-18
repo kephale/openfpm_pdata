@@ -126,7 +126,7 @@ private:
 		{
 			i_time = 0;
 			n_ts = 1;
-			w_n = nw_n;
+			w_n = -1;
 			return true;
 		}
 		else
