@@ -1,0 +1,29 @@
+include example.mk
+
+CC=mpic++
+JAVA = /Library/Java/Home/bin/java
+JAVAC = /Library/Java/Home/bin/javac
+JAR = /Library/Java/Home/bin/jar
+CCFLAGS =  -O3 -g -c --std=c++11
+
+LDIR =
+
+openfpm3D.o: openfpm3D.cpp
+	$(CC) ${OPTIMIZATIONFLAGS} ${CCFLAGS} -I"/System/Library/Frameworks/JavaVM.framework/Versions/Current/Headers/" -c openfpm3D.cpp -o obj/openfpm3D.o $(INCLUDE_PATH)
+
+libopenfpm3D.jnilib: obj/openfpm3D.o
+	$(CC) ${OPTIMIZATIONFLAGS} ${CCFLAGS} -I"/System/Library/Frameworks/JavaVM.framework/Versions/Current/Headers/" -dynamiclib -o openfpm3D.jnilib obj/openfpm3D.o ${LIBS} $(LIBS_PATH)
+
+openfpm3d.jar: libopenfpm3D.jnilib java/OpenFPM3D.java java/NativeUtils.java
+	$(JAVAC) java/NativeUtils.java -d obj/
+	$(JAVAC) java/OpenFPM3D.java -d obj/ -sourcepath java/
+	$(JAR) cf openfpm3d.jar -C obj OpenFPM3D.class -C obj NativeUtils.class -C obj libopenfpm3D.jnilib
+#	lein localrepo install vasculajure.jar local/vasculajure current-SNAPSHOT
+
+all: openfpm3d.jar
+
+.PHONY: clean all
+
+clean:
+	rm -f *.o *~ obj/* openfpm3d.jar
+

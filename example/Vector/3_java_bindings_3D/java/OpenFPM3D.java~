@@ -1,0 +1,53 @@
+import java.io.IOException;
+
+public class OpenFPM3D {
+	
+	public OpenFPM() {
+
+		    try {
+		    	// Check native system
+		        System.loadLibrary("vasculajure"); // used for tests. This library in classpath only
+		    } catch (UnsatisfiedLinkError e) {
+		        try {
+		            NativeUtils.loadLibraryFromJar("/libvasculajure.jnilib"); // during runtime. .DLL within .JAR
+		        } catch (IOException e1) {
+		            throw new RuntimeException(e1);
+		        }
+		    }
+
+		System.out.println( "Vasculajure" );
+	}
+
+	public static native String eval(String expr);
+	public static native String instructionSet();
+	
+	public static native void init();
+	//public static native void destroy();
+	
+	//static { System.loadLibrary( "vasculajure" ); }
+	
+	/*static {
+	    try {
+	    	// Check native system
+	        System.loadLibrary("vasculajure"); // used for tests. This library in classpath only
+	    } catch (UnsatisfiedLinkError e) {
+	        try {
+	            NativeUtils.loadLibraryFromJar("/libvasculajure.jnilib"); // during runtime. .DLL within .JAR
+	        } catch (IOException e1) {
+	            throw new RuntimeException(e1);
+	        }
+	    }
+	}*/
+	
+	public static void main( String[] args ) {
+		Vasculajure vasc = new Vasculajure();
+		System.out.println( "Initializing" );
+		vasc.init();
+		String expr = "(+ 1 1)\n";
+		System.out.println( expr );
+		String result = vasc.eval( expr );
+		System.out.println( "Result" );
+		System.out.println( result );
+	}
+	
+}
