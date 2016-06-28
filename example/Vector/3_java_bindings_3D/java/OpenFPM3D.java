@@ -43,6 +43,7 @@ public class OpenFPM3D {
     public static native void updateCellList( );
 
     public static native double[] getParticlePosition( int key );
+    public static native void setParticlePosition( int key, double[] newPosition );    
     public static native Object getParticleState( int key );
     public static native int[] getParticleNeighbors( int key );    
     

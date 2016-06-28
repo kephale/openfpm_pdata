@@ -254,7 +254,25 @@ JNIEXPORT jdoubleArray JNICALL Java_OpenFPM3D_getParticlePosition
   return result;
 }
 
-								
+/*
+ * Class:     Vasculajure
+ * Method:
+ * Signature:
+ */
+JNIEXPORT void JNICALL Java_OpenFPM3D_setParticlePosition
+(JNIEnv *env, jclass cls, jint key, jdoubleArray dArray ) {
+
+  jboolean isCopy1;
+  jdouble* srcArrayElems =
+    env->GetDoubleArrayElements(dArray, &isCopy1);
+  jint n = env->GetArrayLength(dArray);
+  
+  vd->getPos(key)[0] = srcArrayElems[0];
+  vd->getPos(key)[1] = srcArrayElems[1];
+  vd->getPos(key)[2] = srcArrayElems[2];
+  
+}
+
 /*
  * Class:     Vasculajure
  * Method:

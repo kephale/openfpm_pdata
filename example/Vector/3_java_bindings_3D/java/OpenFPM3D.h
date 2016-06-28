@@ -129,6 +129,14 @@ JNIEXPORT jdoubleArray JNICALL Java_OpenFPM3D_getParticlePosition
 
 /*
  * Class:     OpenFPM3D
+ * Method:    setParticlePosition
+ * Signature: (I[D)V
+ */
+JNIEXPORT void JNICALL Java_OpenFPM3D_setParticlePosition
+  (JNIEnv *, jclass, jint, jdoubleArray);
+
+/*
+ * Class:     OpenFPM3D
  * Method:    getParticleState
  * Signature: (I)Ljava/lang/Object;
  */
