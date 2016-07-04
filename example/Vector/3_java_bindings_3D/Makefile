@@ -16,16 +16,16 @@ obj/libopenfpm3D.jnilib: obj/openfpm3D.o
 #	javah -d java -cp obj -jni OpenFPM3D
 	$(CC) ${OPTIMIZATIONFLAGS} ${CCFLAGS} -I"/System/Library/Frameworks/JavaVM.framework/Versions/Current/Headers/" -dynamiclib -o obj/libopenfpm3D.jnilib obj/openfpm3D.o ${LIBS} $(LIBS_PATH)
 
-openfpm3d.jar: obj/libopenfpm3D.jnilib java/OpenFPM3D.java java/NativeUtils.java
+openfpm3D.jar: obj/libopenfpm3D.jnilib java/OpenFPM3D.java java/NativeUtils.java
 	$(JAVAC) java/NativeUtils.java -d obj/
 	$(JAVAC) java/OpenFPM3D.java -d obj/ -sourcepath java/
 	$(JAR) cf openfpm3d.jar -C obj OpenFPM3D.class -C obj NativeUtils.class -C obj libopenfpm3D.jnilib
-	lein localrepo install openfpm3d.jar local/openfpm3d current-SNAPSHOT
+	mvn install:install-file -Dfile=openfpm3D.jar -DgroupId=local -DartifactId=openfpm3D -Dversion=SNAPSHOT -Dpackaging=jar
 
-all: obj/libopenfpm3D.jnilib openfpm3d.jar
+all: obj/libopenfpm3D.jnilib openfpm3D.jar
 
 .PHONY: clean all
 
 clean:
-	rm -f *.o *~ obj/* openfpm3d.jar 
+	rm -f *.o *~ obj/* openfpm3D.jar 
 
