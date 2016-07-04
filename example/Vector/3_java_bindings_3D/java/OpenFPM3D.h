@@ -81,6 +81,14 @@ JNIEXPORT void JNICALL Java_OpenFPM3D_setBoundaryConditionZ
 
 /*
  * Class:     OpenFPM3D
+ * Method:    numParticles
+ * Signature: ()J
+ */
+JNIEXPORT jlong JNICALL Java_OpenFPM3D_numParticles
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     OpenFPM3D
  * Method:    init
  * Signature: ()V
  */
@@ -98,9 +106,9 @@ JNIEXPORT void JNICALL Java_OpenFPM3D_initBoundary
 /*
  * Class:     OpenFPM3D
  * Method:    addParticle
- * Signature: ([DLjava/lang/Object;)I
+ * Signature: ([DLjava/lang/Object;)J
  */
-JNIEXPORT jint JNICALL Java_OpenFPM3D_addParticle
+JNIEXPORT jlong JNICALL Java_OpenFPM3D_addParticle
   (JNIEnv *, jclass, jdoubleArray, jobject);
 
 /*
@@ -122,34 +130,34 @@ JNIEXPORT void JNICALL Java_OpenFPM3D_updateCellList
 /*
  * Class:     OpenFPM3D
  * Method:    getParticlePosition
- * Signature: (I)[D
+ * Signature: (J)[D
  */
 JNIEXPORT jdoubleArray JNICALL Java_OpenFPM3D_getParticlePosition
-  (JNIEnv *, jclass, jint);
+  (JNIEnv *, jclass, jlong);
 
 /*
  * Class:     OpenFPM3D
  * Method:    setParticlePosition
- * Signature: (I[D)V
+ * Signature: (J[D)V
  */
 JNIEXPORT void JNICALL Java_OpenFPM3D_setParticlePosition
-  (JNIEnv *, jclass, jint, jdoubleArray);
+  (JNIEnv *, jclass, jlong, jdoubleArray);
 
 /*
  * Class:     OpenFPM3D
  * Method:    getParticleState
- * Signature: (I)Ljava/lang/Object;
+ * Signature: (J)Ljava/lang/Object;
  */
 JNIEXPORT jobject JNICALL Java_OpenFPM3D_getParticleState
-  (JNIEnv *, jclass, jint);
+  (JNIEnv *, jclass, jlong);
 
 /*
  * Class:     OpenFPM3D
  * Method:    getParticleNeighbors
- * Signature: (I)[I
+ * Signature: (J)[J
  */
-JNIEXPORT jintArray JNICALL Java_OpenFPM3D_getParticleNeighbors
-  (JNIEnv *, jclass, jint);
+JNIEXPORT jlongArray JNICALL Java_OpenFPM3D_getParticleNeighbors
+  (JNIEnv *, jclass, jlong);
 
 #ifdef __cplusplus
 }

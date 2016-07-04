@@ -1,3 +1,5 @@
+
+
 #include <jni.h>
 #include "java/OpenFPM3D.h"
 #include <iostream>
@@ -14,6 +16,8 @@
 
 #include <string>
 #include <streambuf>
+
+//#define SE_CLASS1
 
 #include "Vector/vector_dist.hpp"
 #include "Decomposition/CartDecomposition.hpp"
@@ -186,7 +190,7 @@ JNIEXPORT void JNICALL Java_OpenFPM3D_initBoundary
  * Method:
  * Signature:
  */
-JNIEXPORT jint JNICALL Java_OpenFPM3D_addParticle
+JNIEXPORT jlong JNICALL Java_OpenFPM3D_addParticle
 (JNIEnv *env, jclass cls, jdoubleArray position, jobject particleState ) {
   jboolean isCopy1;
   jdouble* srcArrayElems =
@@ -200,6 +204,16 @@ JNIEXPORT jint JNICALL Java_OpenFPM3D_addParticle
   vd->template getLastProp<0>() = env->NewGlobalRef( particleState );
 
   return ( vd->size_local() - 1 );
+}
+
+/*
+ * Class:     Vasculajure
+ * Method:
+ * Signature:
+ */
+JNIEXPORT jlong JNICALL Java_OpenFPM3D_numParticles
+(JNIEnv *env, jclass cls ) {
+  return ( vd->size_local() );
 }
 
 /*
@@ -230,7 +244,7 @@ JNIEXPORT void JNICALL Java_OpenFPM3D_updateCellList
  * Signature:
  */
 JNIEXPORT jdoubleArray JNICALL Java_OpenFPM3D_getParticlePosition
-(JNIEnv *env, jclass cls, jint key ) {
+(JNIEnv *env, jclass cls, jlong key ) {
   //auto it2 = vd->getDomainIterator();
   //int counter = 0;
   jdoubleArray result;
@@ -260,12 +274,12 @@ JNIEXPORT jdoubleArray JNICALL Java_OpenFPM3D_getParticlePosition
  * Signature:
  */
 JNIEXPORT void JNICALL Java_OpenFPM3D_setParticlePosition
-(JNIEnv *env, jclass cls, jint key, jdoubleArray dArray ) {
+(JNIEnv *env, jclass cls, jlong key, jdoubleArray dArray ) {
 
   jboolean isCopy1;
   jdouble* srcArrayElems =
     env->GetDoubleArrayElements(dArray, &isCopy1);
-  jint n = env->GetArrayLength(dArray);
+  jlong n = env->GetArrayLength(dArray);
   
   vd->getPos(key)[0] = srcArrayElems[0];
   vd->getPos(key)[1] = srcArrayElems[1];
@@ -279,7 +293,7 @@ JNIEXPORT void JNICALL Java_OpenFPM3D_setParticlePosition
  * Signature:
  */
 JNIEXPORT jobject JNICALL Java_OpenFPM3D_getParticleState
-(JNIEnv *env, jclass cls, jint key ) {
+(JNIEnv *env, jclass cls, jlong key ) {
   //auto it2 = vd->getDomainIterator();
   //int counter = 0;
   jobject result;
@@ -301,27 +315,37 @@ JNIEXPORT jobject JNICALL Java_OpenFPM3D_getParticleState
  * Method:
  * Signature:
  */
-JNIEXPORT jintArray JNICALL Java_OpenFPM3D_getParticleNeighbors
-(JNIEnv *env, jclass cls, jint key ) {
-  jintArray result;
+JNIEXPORT jlongArray JNICALL Java_OpenFPM3D_getParticleNeighbors
+(JNIEnv *env, jclass cls, jlong key ) {
+  jlongArray result;
 
-  int neighborhoodSize = NN.getNelements(NN.getCell( vd->getPos(key) ));
+  //std::cout<<"Getting neighbors of: "<<key<<"\n";
+  
+  //int neighborhoodSize = NN.getNelements(NN.getCell( vd->getPos(key) ));
+  int neighborhoodSize = 0;
+  auto Npp = NN.template getNNIterator<NO_CHECK>(NN.getCell( vd->getPos(key) ));
+  while (Npp.isNext()) {
+    ++Npp;
+    neighborhoodSize++;
+  }
 
   // Get the neighbor list for this particle  
   auto Np = NN.template getNNIterator<NO_CHECK>(NN.getCell( vd->getPos(key) ));
   
-  result = (env)->NewIntArray( neighborhoodSize ); 
+  result = (env)->NewLongArray( neighborhoodSize ); 
   if( result == NULL ) return NULL;
 
-  jint fill[neighborhoodSize];
+  //std::cout<<"Number of neighbors : " <<neighborhoodSize<<"\n";
+  
+  jlong fill[neighborhoodSize];
   int k = 0;
-  while (Np.isNext()) {
-    fill[k] = Np.get();
-    ++Np;
+    while (Np.isNext()) {
+      fill[k] = Np.get();
+          ++Np;
     k++;
-  }
+    }
 
-  (env)->SetIntArrayRegion( result, 0, neighborhoodSize, (const jint*) fill );
+  (env)->SetLongArrayRegion( result, 0, neighborhoodSize, (const jlong*) fill );
     
   return result;
 }
